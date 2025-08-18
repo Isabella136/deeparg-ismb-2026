@@ -28,3 +28,4 @@ real_data_test/*.tsv
 test/X*
 test/*difference*.tsv
 CDD_features
+real_data_test/temp.py
