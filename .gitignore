@@ -29,3 +29,4 @@ test/X*
 test/*difference*.tsv
 CDD_features
 real_data_test/temp.py
+real_data_test/bacteria_refseq_protein*
