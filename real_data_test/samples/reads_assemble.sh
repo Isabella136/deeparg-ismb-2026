@@ -14,7 +14,7 @@
 #SBATCH --mem=128g
 
 module load spades
-mapfile -t biosamples < ./real_samples.txt
+mapfile -t biosamples < ../real_samples.txt
 
 for biosample in "${biosamples[@]}"; do
     cd $biosample

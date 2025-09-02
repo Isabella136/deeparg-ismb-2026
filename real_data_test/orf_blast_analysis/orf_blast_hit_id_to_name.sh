@@ -12,7 +12,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32g
 
-grep "^N" SAMN*/spades/blast_results.txt| cut -f2  | sort | uniq -d > protein_ids.txt
+grep "^N" ../samples/SAMN*/spades/blast_results.txt| cut -f2  | sort | uniq -d > protein_ids.txt
 mapfile -t protein_ids < protein_ids.txt
 
 echo -e "Protein ID\tProtein Length\tGene Name|Protein Name\tCDD start\tCDD end\tCDD ID\tSuperfamily" > protein_dict.tsv

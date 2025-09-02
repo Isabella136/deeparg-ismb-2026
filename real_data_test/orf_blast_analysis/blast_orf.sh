@@ -15,7 +15,7 @@
 eval "$(conda shell.bash hook)"
 conda activate blast
 mapfile -t biosamples < real_samples.txt
-
+cd ../samples
 for biosample in "${biosamples[@]}"; do
     echo $biosample
     cd $biosample/spades

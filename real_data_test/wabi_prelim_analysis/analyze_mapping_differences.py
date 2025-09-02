@@ -5,7 +5,7 @@ biosamples = [line.strip() for line in open("real_samples.txt", "r")]
 arg_specific_cdd = dict()
 arg_superfamily_cdd = dict()
 for part in range(1, 26):
-    for line in open("../CDD_features/Part{}_hitdata.txt".format(part), "r"):
+    for line in open("../../CDD_features/Part{}_hitdata.txt".format(part), "r"):
         fields = line.strip().split('\t')
         if fields[0] == "Query":
             continue
@@ -27,7 +27,7 @@ specific_cdd_amr_ref_count = dict()
 superfamily_cdd_amr_ref_count = dict()
 arg_amr_ref_count = dict()
 arg_list = list()
-with open("../data/database/v2/features.fasta") as features:
+with open("../../data/database/v2/features.fasta") as features:
     for values in FastaIO.SimpleFastaParser(features):
         arg = values[0].split('|')[-1].upper()
         amr = values[0].split('|')[-2]
@@ -73,7 +73,7 @@ for prefix in ["spades/deeparg_results", "deeparg_results"]:
         superfamily_map_diff_freq = dict()
         arg_map_diff = list()
         for bio in biosamples:
-            input = "{}/{}/arg_alignment_identity_{}/AMR_category_difference.tsv".format(
+            input = "../samples/{}/{}/arg_alignment_identity_{}/AMR_category_difference.tsv".format(
                 bio, prefix, perc)
             for line in open(input, "r"):
                 fields = line.strip().split('\t')

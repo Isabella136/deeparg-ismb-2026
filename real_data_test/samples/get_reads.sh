@@ -10,4 +10,4 @@ while IFS= read -r biosample; do
     cd $biosample;
     fasterq-dump $srr;
     cd ..;
-done < real_samples.txt
+done < ./../real_samples.txt

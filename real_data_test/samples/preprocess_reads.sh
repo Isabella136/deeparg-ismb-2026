@@ -15,7 +15,7 @@
 
 module load bbmap
 module load fastqc
-mapfile -t biosamples < ./real_samples.txt
+mapfile -t biosamples < ../real_samples.txt
 
 for biosample in "${biosamples[@]}"; do
     cd $biosample

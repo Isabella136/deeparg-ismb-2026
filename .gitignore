@@ -22,9 +22,10 @@ setup.cfg
 run_test
 
 deeparg_env
-real_data_test/SAM*/*
-real_data_test/*.tsv
-real_data_test/protein_ids.txt
+real_data_test/samples/SAMN*
+real_data_test/orf_blast_analysis/*.tsv
+real_data_test/wabi_prelim_analysis/*.tsv
+real_data_test/orf_blast_analysis/protein_ids.txt
 *log*
 test/X*
 test/*difference*.tsv
