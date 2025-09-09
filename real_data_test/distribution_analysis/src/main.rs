@@ -13,6 +13,7 @@ type QueRef = RefCell<Query>;
 type StringHashMap<T> = HashMap<String, T, RandomState>;
 
 static CDD_DIR: &str = "../../CDD_features/";
+static REF_LOC: &str = "../../data/database/v2/features.fasta";
 static DEEPARG_HIT_FILE: &str = "X.mapping.ARG";
 static ALIGNMENT_FILE: &str = "X.align.daa.tsv";
 static SAMPLE_ID_FILE: &str = "../real_samples.txt";
@@ -22,11 +23,6 @@ static PATH_TO_LS: &str = "spades/deeparg_results";
 static DISTRIBUTION_OUTPUT: &str = "_distributions.txt";
 
 fn main() {
-    // Create output files
-    let mut gene_amr_distr = File::create(format!("gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut cdd_amr_distr = File::create(format!("cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut super_amr_distr = File::create(format!("super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-
     // Read content of real_samples.txt to find biosample ID
     let mut sample_id_file = File::open(SAMPLE_ID_FILE).unwrap();
     let mut sample_id_string = String::new();
@@ -68,16 +64,63 @@ fn main() {
 
     ref_struct_vec.last().unwrap().update_amr_hashmaps(
         &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
+    let mut ref_file = File::open(REF_LOC).unwrap();
+    let mut ref_string = String::new();
+    let _ = ref_file.read_to_string(&mut ref_string);
+    drop(ref_file);
+    let ref_vec: Vec<&str> = ref_string.split('\n').collect();
+    for ref_index in 0..(ref_vec.len()-1)/2 {
+        let ref_name = &ref_vec[ref_index*2][1..];
+        let ref_seq = ref_vec[ref_index*2+1];
+        if !ref_name_vec.contains(&ref_name.to_string()) {
+            ref_name_vec.push(ref_name.to_string());
+            ref_struct_vec.push(
+                Rc::new(Reference {
+                    name: ref_name.to_string(),
+                    domains: vec![Rc::new(Domain { 
+                        start: 0usize, 
+                        end: ref_seq.len()-1, 
+                        cdd_acc: ref_name.split('|').last().unwrap().to_string(), 
+                        super_acc: ref_name.split('|').last().unwrap().to_string()
+                    })]
+                })
+            );
+            ref_struct_vec.last().unwrap().update_amr_hashmaps(
+                &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
+        }
+    }
+
+    // Create tables that includes db distribution followed by [30SS, 30LS, 50SS, 50LS, 80SS, 80LS]*10 distributions
+    let mut gene_amr_hashtable_a1: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_gene_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    let mut cdd_amr_hashtable_a1: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_cdd_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    let mut super_amr_hashtable_a1: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_super_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+
+    let mut gene_amr_hashtable_a2: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_gene_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    let mut cdd_amr_hashtable_a2: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_cdd_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    let mut super_amr_hashtable_a2: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_super_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+
+    let mut gene_amr_hashtable_a3: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_gene_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    let mut cdd_amr_hashtable_a3: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_cdd_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    let mut super_amr_hashtable_a3: StringHashMap<Vec<f64>> = HashMap::from_iter(
+        db_super_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
 
     // Make hashmap between reference name and reference struct to make matching constant time
-    let mut ref_hashmap: StringHashMap<RefRc> = HashMap::from_iter(zip(ref_name_vec, ref_struct_vec));
+    let ref_hashmap: StringHashMap<RefRc> = HashMap::from_iter(zip(ref_name_vec, ref_struct_vec));
 
     for sample_id in sample_id_vec {
         for identity in vec![30, 50, 80] {
             // Make distribution hashmap for analysis 3
-            let mut ss_gene_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut ss_cdd_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut ss_super_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap3: StringHashMap<f64> = HashMap::new();
 
             // Look through alignment output for short sequences
             let mut ss_query_name_vec: Vec<String> = vec![];
@@ -93,27 +136,13 @@ fn main() {
                 let row: Vec<&str> = full_ss_alignment_vec[row_index].split('\t').collect();
                 if ss_query_name_vec.len() > 0 && row[0] == ss_query_name_vec.last().unwrap() {
                     let mut query_struct = ss_query_struct_vec.last().unwrap().borrow_mut();
-                    if ref_hashmap.get(&row[1].to_string()).is_none() {
-                        query_struct.add_alignment(&row, &mut ref_hashmap);
-                        ref_hashmap.get(&row[1].to_string()).unwrap().update_amr_hashmaps(
-                            &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
-                    }
-                    else {
-                        query_struct.add_alignment(&row, &mut ref_hashmap);
-                    }
+                    query_struct.add_alignment(&row, &ref_hashmap);
                 }
                 else {
                     ss_query_name_vec.push(row[0].to_string());
-                    if ref_hashmap.get(&row[1].to_string()).is_none() {
-                        ss_query_struct_vec.push(RefCell::new(Query::new(&row, &mut ref_hashmap)));
-                        ref_hashmap.get(&row[1].to_string()).unwrap().update_amr_hashmaps(
-                            &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
-                    }
-                    else {
-                        ss_query_struct_vec.push(RefCell::new(Query::new(&row, &mut ref_hashmap)));
-                    }
+                    ss_query_struct_vec.push(RefCell::new(Query::new(&row, &ref_hashmap)));
                     ss_query_struct_vec.last().unwrap().borrow().update_amr_hashmaps_v3(
-                        &mut ss_gene_amr_hashmap3, &mut ss_cdd_amr_hashmap3, &mut ss_super_amr_hashmap3);
+                        &mut gene_amr_hashmap3, &mut cdd_amr_hashmap3, &mut super_amr_hashmap3);
                 }
             }
             // Make hashmap between query name and query struct to make matching constant time
@@ -121,14 +150,14 @@ fn main() {
                 zip(ss_query_name_vec, ss_query_struct_vec));
 
             // Make distribution hashmap for analysis 1
-            let mut ss_gene_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut ss_cdd_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut ss_super_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap1: StringHashMap<f64> = HashMap::new();
 
             // Make distribution hashmap for analysis 2
-            let mut ss_gene_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut ss_cdd_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut ss_super_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap2: StringHashMap<f64> = HashMap::new();
 
             // Look through deeparg hit file
             let mut full_ss_deeparg_hit_file = File::open(format!(
@@ -145,33 +174,36 @@ fn main() {
                 let mut query_struct = ss_query_hashmap.get(&read_id).unwrap().borrow_mut();
                 query_struct.find_deeparg_hit(best_hit);
                 query_struct.update_amr_hashmaps_v1(
-                    &mut ss_gene_amr_hashmap1, &mut ss_cdd_amr_hashmap1, &mut ss_super_amr_hashmap1);
+                    &mut gene_amr_hashmap1, &mut cdd_amr_hashmap1, &mut super_amr_hashmap1);
                 query_struct.update_amr_hashmaps_v2(
-                    &mut ss_gene_amr_hashmap2, &mut ss_cdd_amr_hashmap2, &mut ss_super_amr_hashmap2);
+                    &mut gene_amr_hashmap2, &mut cdd_amr_hashmap2, &mut super_amr_hashmap2);
             }
 
-            let _ = gene_amr_distr.write(
-                format!("{} short sequence with {}% alignment identity:\nAnalysis 1:\n{:#?}\n", 
-                sample_id, identity, ss_gene_amr_hashmap1).as_bytes());
-            let _ = cdd_amr_distr.write(
-                format!("{} short sequence with {}% alignment identity:\nAnalysis 1:\n{:#?}\n", 
-                sample_id, identity, ss_cdd_amr_hashmap1).as_bytes());
-            let _ = super_amr_distr.write(
-                format!("{} short sequence with {}% alignment identity:\nAnalysis 1:\n{:#?}\n", 
-                sample_id, identity, ss_super_amr_hashmap1).as_bytes());
+            gene_amr_hashtable_a1 = return_extended_hashtable(&mut gene_amr_hashtable_a1, 
+                gene_amr_hashmap1);
+            cdd_amr_hashtable_a1 = return_extended_hashtable(&mut cdd_amr_hashtable_a1, 
+                cdd_amr_hashmap1);
+            super_amr_hashtable_a1 = return_extended_hashtable(&mut super_amr_hashtable_a1, 
+                super_amr_hashmap1);
 
-            let _ = gene_amr_distr.write(format!("Analysis 2:\n{:#?}\n", ss_gene_amr_hashmap2).as_bytes());
-            let _ = cdd_amr_distr.write(format!("Analysis 2:\n{:#?}\n", ss_cdd_amr_hashmap2).as_bytes());
-            let _ = super_amr_distr.write(format!("Analysis 2:\n{:#?}\n", ss_super_amr_hashmap2).as_bytes());
+            gene_amr_hashtable_a2 = return_extended_hashtable(&mut gene_amr_hashtable_a2, 
+                gene_amr_hashmap2);
+            cdd_amr_hashtable_a2 = return_extended_hashtable(&mut cdd_amr_hashtable_a2, 
+                cdd_amr_hashmap2);
+            super_amr_hashtable_a2 = return_extended_hashtable(&mut super_amr_hashtable_a2, 
+                super_amr_hashmap2);
 
-            let _ = gene_amr_distr.write(format!("Analysis 3:\n{:#?}\n --- \n", ss_gene_amr_hashmap3).as_bytes());
-            let _ = cdd_amr_distr.write(format!("Analysis 3:\n{:#?}\n --- \n", ss_cdd_amr_hashmap3).as_bytes());
-            let _ = super_amr_distr.write(format!("Analysis 3:\n{:#?}\n --- \n", ss_super_amr_hashmap3).as_bytes());
+            gene_amr_hashtable_a3 = return_extended_hashtable(&mut gene_amr_hashtable_a3, 
+                gene_amr_hashmap3);
+            cdd_amr_hashtable_a3 = return_extended_hashtable(&mut cdd_amr_hashtable_a3, 
+                cdd_amr_hashmap3);
+            super_amr_hashtable_a3 = return_extended_hashtable(&mut super_amr_hashtable_a3, 
+                super_amr_hashmap3);
 
             // Make distribution hashmap for analysis 3
-            let mut ls_gene_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut ls_cdd_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut ls_super_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap3: StringHashMap<f64> = HashMap::new();
 
             // Look through alignment output for long sequences
             let mut ls_query_name_vec: Vec<String> = vec![];
@@ -187,41 +219,27 @@ fn main() {
                 let row: Vec<&str> = full_ls_alignment_vec[row_index].split('\t').collect();
                 if ls_query_name_vec.len() > 0 && row[0] == ls_query_name_vec.last().unwrap() {
                     let mut query_struct = ls_query_struct_vec.last().unwrap().borrow_mut();
-                    if ref_hashmap.get(&row[1].to_string()).is_none() {
-                        query_struct.add_alignment(&row, &mut ref_hashmap);
-                        ref_hashmap.get(&row[1].to_string()).unwrap().update_amr_hashmaps(
-                            &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
-                    }
-                    else {
-                        query_struct.add_alignment(&row, &mut ref_hashmap);
-                    }
+                    query_struct.add_alignment(&row, &ref_hashmap);
                 }
                 else {
                     ls_query_name_vec.push(row[0].to_string());
-                    if ref_hashmap.get(&row[1].to_string()).is_none() {
-                        ls_query_struct_vec.push(RefCell::new(Query::new(&row, &mut ref_hashmap)));
-                        ref_hashmap.get(&row[1].to_string()).unwrap().update_amr_hashmaps(
-                            &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
-                    }
-                    else {
-                        ls_query_struct_vec.push(RefCell::new(Query::new(&row, &mut ref_hashmap)));
-                    }
+                    ls_query_struct_vec.push(RefCell::new(Query::new(&row, &ref_hashmap)));
                     ls_query_struct_vec.last().unwrap().borrow().update_amr_hashmaps_v3(
-                        &mut ls_gene_amr_hashmap3, &mut ls_cdd_amr_hashmap3, &mut ls_super_amr_hashmap3);
+                        &mut gene_amr_hashmap3, &mut cdd_amr_hashmap3, &mut super_amr_hashmap3);
                 }
             }
             // Make hashmap between query name and query struct to make matching constant time
             let ls_query_hashmap: StringHashMap<QueRef> = HashMap::from_iter(zip(ls_query_name_vec, ls_query_struct_vec));
 
             // Make distribution hashmap for analysis 1
-            let mut ls_gene_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut ls_cdd_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut ls_super_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap1: StringHashMap<f64> = HashMap::new();
 
             // Make distribution hashmap for analysis 2
-            let mut ls_gene_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut ls_cdd_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut ls_super_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap2: StringHashMap<f64> = HashMap::new();
 
             // Look through deeparg hit file
             let mut full_ls_deeparg_hit_file = File::open(format!(
@@ -241,33 +259,81 @@ fn main() {
                 let mut query_struct = ls_query_hashmap.get(&read_id).unwrap().borrow_mut();
                 query_struct.find_deeparg_hit(best_hit);
                 query_struct.update_amr_hashmaps_v1(
-                    &mut ls_gene_amr_hashmap1, &mut ls_cdd_amr_hashmap1, &mut ls_super_amr_hashmap1);
+                    &mut gene_amr_hashmap1, &mut cdd_amr_hashmap1, &mut super_amr_hashmap1);
                 query_struct.update_amr_hashmaps_v2(
-                    &mut ls_gene_amr_hashmap2, &mut ls_cdd_amr_hashmap2, &mut ls_super_amr_hashmap2);
+                    &mut gene_amr_hashmap2, &mut cdd_amr_hashmap2, &mut super_amr_hashmap2);
             }
 
-            let _ = gene_amr_distr.write(
-                format!("{} long sequence with {}% alignment identity:\nAnalysis 1:\n{:#?}\n", 
-                sample_id, identity, ls_gene_amr_hashmap1).as_bytes());
-            let _ = cdd_amr_distr.write(
-                format!("{} long sequence with {}% alignment identity:\nAnalysis 1:\n{:#?}\n", 
-                sample_id, identity, ls_cdd_amr_hashmap1).as_bytes());
-            let _ = super_amr_distr.write(
-                format!("{} long sequence with {}% alignment identity:\nAnalysis 1:\n{:#?}\n", 
-                sample_id, identity, ls_super_amr_hashmap1).as_bytes());
+            gene_amr_hashtable_a1 = return_extended_hashtable(&mut gene_amr_hashtable_a1, 
+                gene_amr_hashmap1);
+            cdd_amr_hashtable_a1 = return_extended_hashtable(&mut cdd_amr_hashtable_a1, 
+                cdd_amr_hashmap1);
+            super_amr_hashtable_a1 = return_extended_hashtable(&mut super_amr_hashtable_a1, 
+                super_amr_hashmap1);
 
-            let _ = gene_amr_distr.write(format!("Analysis 2:\n{:#?}\n", ls_gene_amr_hashmap2).as_bytes());
-            let _ = cdd_amr_distr.write(format!("Analysis 2:\n{:#?}\n", ls_cdd_amr_hashmap2).as_bytes());
-            let _ = super_amr_distr.write(format!("Analysis 2:\n{:#?}\n", ls_super_amr_hashmap2).as_bytes());
+            gene_amr_hashtable_a2 = return_extended_hashtable(&mut gene_amr_hashtable_a2, 
+                gene_amr_hashmap2);
+            cdd_amr_hashtable_a2 = return_extended_hashtable(&mut cdd_amr_hashtable_a2, 
+                cdd_amr_hashmap2);
+            super_amr_hashtable_a2 = return_extended_hashtable(&mut super_amr_hashtable_a2, 
+                super_amr_hashmap2);
 
-            let _ = gene_amr_distr.write(format!("Analysis 3:\n{:#?}\n --- \n", ls_gene_amr_hashmap3).as_bytes());
-            let _ = cdd_amr_distr.write(format!("Analysis 3:\n{:#?}\n --- \n", ls_cdd_amr_hashmap3).as_bytes());
-            let _ = super_amr_distr.write(format!("Analysis 3:\n{:#?}\n --- \n", ls_super_amr_hashmap3).as_bytes());
+            gene_amr_hashtable_a3 = return_extended_hashtable(&mut gene_amr_hashtable_a3, 
+                gene_amr_hashmap3);
+            cdd_amr_hashtable_a3 = return_extended_hashtable(&mut cdd_amr_hashtable_a3, 
+                cdd_amr_hashmap3);
+            super_amr_hashtable_a3 = return_extended_hashtable(&mut super_amr_hashtable_a3, 
+                super_amr_hashmap3);
         }
     }
-    let _ = gene_amr_distr.write(format!("Reference:\n{:#?}\n --- \n", db_gene_amr_hashmap).as_bytes());
-    let _ = cdd_amr_distr.write(format!("Reference:\n{:#?}\n --- \n", db_cdd_amr_hashmap).as_bytes());
-    let _ = super_amr_distr.write(format!("Reference:\n{:#?}\n --- \n", db_super_amr_hashmap).as_bytes());
+
+    // Create output files
+    let mut gene_amr_distr_a1 = File::create(format!("analysis_1_gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+    let mut cdd_amr_distr_a1 = File::create(format!("analysis_1_cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+    let mut super_amr_distr_a1 = File::create(format!("analysis_1_super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+
+    let mut gene_amr_distr_a2 = File::create(format!("analysis_2_gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+    let mut cdd_amr_distr_a2 = File::create(format!("analysis_2_cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+    let mut super_amr_distr_a2 = File::create(format!("analysis_2_super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+
+    let mut gene_amr_distr_a3 = File::create(format!("analysis_3_gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+    let mut cdd_amr_distr_a3 = File::create(format!("analysis_3_cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+    let mut super_amr_distr_a3 = File::create(format!("analysis_3_super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
+
+
+
+    write_hashtable_to_file(&mut gene_amr_distr_a1, gene_amr_hashtable_a1);
+    write_hashtable_to_file(&mut cdd_amr_distr_a1, cdd_amr_hashtable_a1);
+    write_hashtable_to_file(&mut super_amr_distr_a1, super_amr_hashtable_a1);
+
+    write_hashtable_to_file(&mut gene_amr_distr_a2, gene_amr_hashtable_a2);
+    write_hashtable_to_file(&mut cdd_amr_distr_a2, cdd_amr_hashtable_a2);
+    write_hashtable_to_file(&mut super_amr_distr_a2, super_amr_hashtable_a2);
+
+    write_hashtable_to_file(&mut gene_amr_distr_a3, gene_amr_hashtable_a3);
+    write_hashtable_to_file(&mut cdd_amr_distr_a3, cdd_amr_hashtable_a3);
+    write_hashtable_to_file(&mut super_amr_distr_a3, super_amr_hashtable_a3);
+}
+
+fn write_hashtable_to_file(file: &mut File, table: StringHashMap<Vec<f64>>) {
+    for row in table.iter() {
+        let _ = file.write(row.0.as_bytes());
+        for val in row.1 {
+            let _ = file.write(format!("\t{}", *val).as_bytes());
+        }
+        let _ = file.write(b"\n");
+    }
+    
+
+}
+
+fn return_extended_hashtable(hashtable: &mut StringHashMap<Vec<f64>>, 
+        hashmap: StringHashMap<f64>) -> StringHashMap<Vec<f64>>{
+    HashMap::from_iter(hashtable.iter_mut().map(|(x, y)| {
+        if hashmap.contains_key(x) {y.push(*hashmap.get(x).unwrap());}
+        else {y.push(0.0);}
+        (x.clone(), y.clone())
+    }))
 }
 
 #[derive(Debug)]
@@ -500,20 +566,7 @@ impl DomainContainer for Alignment {
 }
 
 impl Alignment {
-    fn new(row: &Vec<&str>, ref_hashmap: &mut StringHashMap<RefRc>) -> Self {
-        if ref_hashmap.get(row[1]).is_none() {
-            ref_hashmap.insert(row[1].to_string(), 
-                Rc::new(Reference {
-                    name: row[1].to_string(),
-                    domains: vec![Rc::new(Domain { 
-                        start: 0usize, 
-                        end: row[3].parse().unwrap(), 
-                        cdd_acc: row[1].split('|').last().unwrap().to_string(), 
-                        super_acc: row[1].split('|').last().unwrap().to_string()
-                    })]
-                })
-            );
-        }
+    fn new(row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) -> Self {
         let matching_reference = ref_hashmap.get(row[1]).unwrap().clone();
         let start = row[8].parse().unwrap();
         let end = row[9].parse().unwrap();
@@ -539,14 +592,14 @@ struct Query{
 }
 
 impl Query{
-    fn new(row: &Vec<&str>, ref_hashmap: &mut StringHashMap<RefRc>) -> Self {
+    fn new(row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) -> Self {
         Self { 
             alignments: vec![Alignment::new(row, ref_hashmap)],
             top_diamond_alignment: 0usize,
             top_deeparg_hit: None,
             is_deeparg_hit: false }
     }
-    fn add_alignment(&mut self, row: &Vec<&str>, ref_hashmap: &mut StringHashMap<RefRc>) {
+    fn add_alignment(&mut self, row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) {
         self.alignments.push(Alignment::new(row, ref_hashmap));
     }
     fn find_deeparg_hit(&mut self, best_hit: String) {
