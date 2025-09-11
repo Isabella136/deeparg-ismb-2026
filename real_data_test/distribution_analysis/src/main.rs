@@ -11,6 +11,7 @@ type RefRc = Rc<Reference>;
 type QueVec = Vec<RefCell<Query>>;
 type QueRef = RefCell<Query>;
 type StringHashMap<T> = HashMap<String, T, RandomState>;
+type RcStringHashMap<T> = HashMap<Rc<String>, T, RandomState>;
 
 static CDD_DIR: &str = "../../CDD_features/";
 static REF_LOC: &str = "../../data/database/v2/features.fasta";
@@ -20,7 +21,7 @@ static SAMPLE_ID_FILE: &str = "../real_samples.txt";
 static PATH_TO_SS: &str = "deeparg_results";
 static PATH_TO_LS: &str = "spades/deeparg_results";
 
-static DISTRIBUTION_OUTPUT: &str = "_distributions.txt";
+static COMPARISON_OUTPUT: &str = "comparison.txt";
 
 fn main() {
     // Read content of real_samples.txt to find biosample ID
@@ -31,9 +32,10 @@ fn main() {
     let sample_id_vec: Vec<&str> = sample_id_string.split('\n').collect();
 
     // Make distribution hashmap for entire database
-    let mut db_gene_amr_hashmap: StringHashMap<f64> = HashMap::new();
-    let mut db_cdd_amr_hashmap: StringHashMap<f64> = HashMap::new();
-    let mut db_super_amr_hashmap: StringHashMap<f64> = HashMap::new();
+    let mut domain_name_refs: StringHashMap<Rc<String>> = HashMap::new();
+    let mut db_gene_amr_hashmap: RcStringHashMap<f64> = HashMap::new();
+    let mut db_cdd_amr_hashmap: RcStringHashMap<f64> = HashMap::new();
+    let mut db_super_amr_hashmap: RcStringHashMap<f64> = HashMap::new();
 
     // Look through CDD features and initialize a new Reference struct for each reference
     let mut ref_name_vec: Vec<String> = vec![];
@@ -54,7 +56,8 @@ fn main() {
             else {
                 if part > 1 || row_index > 1 {
                     ref_struct_vec.last().unwrap().update_amr_hashmaps(
-                        &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
+                        &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, 
+                        &mut db_super_amr_hashmap, &mut domain_name_refs);
                 }
                 ref_name_vec.push(name.to_string());
                 ref_struct_vec.push(Rc::new(Reference::new(row)));
@@ -63,7 +66,8 @@ fn main() {
     }
 
     ref_struct_vec.last().unwrap().update_amr_hashmaps(
-        &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
+        &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, 
+        &mut db_super_amr_hashmap, &mut domain_name_refs);
     let mut ref_file = File::open(REF_LOC).unwrap();
     let mut ref_string = String::new();
     let _ = ref_file.read_to_string(&mut ref_string);
@@ -86,41 +90,30 @@ fn main() {
                 })
             );
             ref_struct_vec.last().unwrap().update_amr_hashmaps(
-                &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, &mut db_super_amr_hashmap);
+                &mut db_gene_amr_hashmap, &mut db_cdd_amr_hashmap, 
+                &mut db_super_amr_hashmap, &mut domain_name_refs);
         }
     }
 
-    // Create tables that includes db distribution followed by [30SS, 30LS, 50SS, 50LS, 80SS, 80LS]*10 distributions
-    let mut gene_amr_hashtable_a1: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_gene_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-    let mut cdd_amr_hashtable_a1: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_cdd_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-    let mut super_amr_hashtable_a1: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_super_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-
-    let mut gene_amr_hashtable_a2: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_gene_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-    let mut cdd_amr_hashtable_a2: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_cdd_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-    let mut super_amr_hashtable_a2: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_super_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-
-    let mut gene_amr_hashtable_a3: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_gene_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-    let mut cdd_amr_hashtable_a3: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_cdd_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
-    let mut super_amr_hashtable_a3: StringHashMap<Vec<f64>> = HashMap::from_iter(
-        db_super_amr_hashmap.iter().map(|(x, y)| (x.clone(), vec![*y])));
+    // Instances when deeparg hit != diamond alignment. Tuple has sample; identity; 
+    // model type; diamond's gene_amr info, cdd_amr info, and super_amr info; deeparg's 
+    // gene_amr info, cdd_amr info, and super_amr info where info is key, distr
+    // in ref, distr in diamond, distr in diamond(restricted) and distr in deeparg
+    let mut deeparg_not_equal_diamond: HashMap<(&str, i32, &str, 
+        [String; 6]), usize, RandomState> = HashMap::new();
 
     // Make hashmap between reference name and reference struct to make matching constant time
     let ref_hashmap: StringHashMap<RefRc> = HashMap::from_iter(zip(ref_name_vec, ref_struct_vec));
 
     for sample_id in sample_id_vec {
+    println!("{}", sample_id);
         for identity in vec![30, 50, 80] {
+            println!("{}", identity);
+            println!("SS");
             // Make distribution hashmap for analysis 3
-            let mut gene_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut cdd_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut super_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap3: RcStringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap3: RcStringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap3: RcStringHashMap<f64> = HashMap::new();
 
             // Look through alignment output for short sequences
             let mut ss_query_name_vec: Vec<String> = vec![];
@@ -142,7 +135,8 @@ fn main() {
                     ss_query_name_vec.push(row[0].to_string());
                     ss_query_struct_vec.push(RefCell::new(Query::new(&row, &ref_hashmap)));
                     ss_query_struct_vec.last().unwrap().borrow().update_amr_hashmaps_v3(
-                        &mut gene_amr_hashmap3, &mut cdd_amr_hashmap3, &mut super_amr_hashmap3);
+                        &mut gene_amr_hashmap3, &mut cdd_amr_hashmap3, 
+                        &mut super_amr_hashmap3, &mut domain_name_refs);
                 }
             }
             // Make hashmap between query name and query struct to make matching constant time
@@ -150,14 +144,14 @@ fn main() {
                 zip(ss_query_name_vec, ss_query_struct_vec));
 
             // Make distribution hashmap for analysis 1
-            let mut gene_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut cdd_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut super_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap1: RcStringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap1: RcStringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap1: RcStringHashMap<f64> = HashMap::new();
 
             // Make distribution hashmap for analysis 2
-            let mut gene_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut cdd_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut super_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap2: RcStringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap2: RcStringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap2: RcStringHashMap<f64> = HashMap::new();
 
             // Look through deeparg hit file
             let mut full_ss_deeparg_hit_file = File::open(format!(
@@ -174,36 +168,76 @@ fn main() {
                 let mut query_struct = ss_query_hashmap.get(&read_id).unwrap().borrow_mut();
                 query_struct.find_deeparg_hit(best_hit);
                 query_struct.update_amr_hashmaps_v1(
-                    &mut gene_amr_hashmap1, &mut cdd_amr_hashmap1, &mut super_amr_hashmap1);
+                    &mut gene_amr_hashmap1, &mut cdd_amr_hashmap1, 
+                    &mut super_amr_hashmap1, &mut domain_name_refs);
                 query_struct.update_amr_hashmaps_v2(
-                    &mut gene_amr_hashmap2, &mut cdd_amr_hashmap2, &mut super_amr_hashmap2);
+                    &mut gene_amr_hashmap2, &mut cdd_amr_hashmap2, 
+                    &mut super_amr_hashmap2, &mut domain_name_refs);
             }
 
-            gene_amr_hashtable_a1 = return_extended_hashtable(&mut gene_amr_hashtable_a1, 
-                gene_amr_hashmap1);
-            cdd_amr_hashtable_a1 = return_extended_hashtable(&mut cdd_amr_hashtable_a1, 
-                cdd_amr_hashmap1);
-            super_amr_hashtable_a1 = return_extended_hashtable(&mut super_amr_hashtable_a1, 
-                super_amr_hashmap1);
+            for query in ss_query_hashmap.values() {
+                let borrowed = query.borrow();
+                if !borrowed.is_deeparg_hit {
+                    continue;
+                }
+                if borrowed.top_diamond_alignment == borrowed.top_deeparg_hit.unwrap() {
+                    continue;
+                }
 
-            gene_amr_hashtable_a2 = return_extended_hashtable(&mut gene_amr_hashtable_a2, 
-                gene_amr_hashmap2);
-            cdd_amr_hashtable_a2 = return_extended_hashtable(&mut cdd_amr_hashtable_a2, 
-                cdd_amr_hashmap2);
-            super_amr_hashtable_a2 = return_extended_hashtable(&mut super_amr_hashtable_a2, 
-                super_amr_hashmap2);
+                let dia_doms = borrowed.get_top_diamond_alignment_domain_identifiers();
+                let dee_doms = borrowed.get_top_deeparg_hit_domain_identifiers().unwrap();
+                for (dia_gene_amr, dia_cdd_amr, dia_super_amr) in &dia_doms {
+                    for (dee_gene_amr, dee_cdd_amr, dee_super_amr) in &dee_doms {
+                        if *dia_gene_amr == *dee_gene_amr {
+                            continue;
+                        }
+                        if dia_doms.contains(&(dee_gene_amr.clone(), dee_cdd_amr.clone(), dee_super_amr.clone())) &&
+                            dee_doms.contains(&(dia_gene_amr.clone(), dia_cdd_amr.clone(), dia_super_amr.clone())) {
+                            continue;
+                        }
+                        let dee_gene_amr_info = 
+                            get_domain_info(dee_gene_amr.to_string(), &gene_amr_hashmap1,
+                                &gene_amr_hashmap2, &gene_amr_hashmap3, 
+                                &db_gene_amr_hashmap, &mut domain_name_refs);
+                        let dee_cdd_amr_info = 
+                            get_domain_info(dee_cdd_amr.to_string(), &cdd_amr_hashmap1,
+                                &cdd_amr_hashmap2, &cdd_amr_hashmap3, 
+                                &db_cdd_amr_hashmap, &mut domain_name_refs);
+                        let dee_super_amr_info = 
+                            get_domain_info(dee_super_amr.to_string(), &super_amr_hashmap1,
+                                &super_amr_hashmap2, &super_amr_hashmap3, 
+                                &db_super_amr_hashmap, &mut domain_name_refs);
+                        let dia_gene_amr_info = 
+                            get_domain_info(dia_gene_amr.to_string(), &gene_amr_hashmap1,
+                                &gene_amr_hashmap2, &gene_amr_hashmap3, 
+                                &db_gene_amr_hashmap, &mut domain_name_refs);
+                        let dia_cdd_amr_info = 
+                            get_domain_info(dia_cdd_amr.to_string(), &cdd_amr_hashmap1,
+                                &cdd_amr_hashmap2, &cdd_amr_hashmap3, 
+                                &db_cdd_amr_hashmap, &mut domain_name_refs);
+                        let dia_super_amr_info = 
+                            get_domain_info(dia_super_amr.to_string(), &super_amr_hashmap1,
+                                &super_amr_hashmap2, &super_amr_hashmap3, 
+                                &db_super_amr_hashmap, &mut domain_name_refs);
+                        let key = (sample_id, identity, "SS", [
+                            dia_gene_amr_info, dia_cdd_amr_info, dia_super_amr_info,
+                            dee_gene_amr_info, dee_cdd_amr_info, dee_super_amr_info,
+                        ]);
+                        if !deeparg_not_equal_diamond.contains_key(&key) {
+                            deeparg_not_equal_diamond.insert(key, 1);
+                        }
+                        else {
+                            *deeparg_not_equal_diamond.get_mut(&key).unwrap() += 1;
+                        }
+                    }
+                }
+            }
 
-            gene_amr_hashtable_a3 = return_extended_hashtable(&mut gene_amr_hashtable_a3, 
-                gene_amr_hashmap3);
-            cdd_amr_hashtable_a3 = return_extended_hashtable(&mut cdd_amr_hashtable_a3, 
-                cdd_amr_hashmap3);
-            super_amr_hashtable_a3 = return_extended_hashtable(&mut super_amr_hashtable_a3, 
-                super_amr_hashmap3);
-
+            println!("LS");
             // Make distribution hashmap for analysis 3
-            let mut gene_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut cdd_amr_hashmap3: StringHashMap<f64> = HashMap::new();
-            let mut super_amr_hashmap3: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap3: RcStringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap3: RcStringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap3: RcStringHashMap<f64> = HashMap::new();
 
             // Look through alignment output for long sequences
             let mut ls_query_name_vec: Vec<String> = vec![];
@@ -225,21 +259,22 @@ fn main() {
                     ls_query_name_vec.push(row[0].to_string());
                     ls_query_struct_vec.push(RefCell::new(Query::new(&row, &ref_hashmap)));
                     ls_query_struct_vec.last().unwrap().borrow().update_amr_hashmaps_v3(
-                        &mut gene_amr_hashmap3, &mut cdd_amr_hashmap3, &mut super_amr_hashmap3);
+                        &mut gene_amr_hashmap3, &mut cdd_amr_hashmap3, 
+                        &mut super_amr_hashmap3, &mut domain_name_refs);
                 }
             }
             // Make hashmap between query name and query struct to make matching constant time
             let ls_query_hashmap: StringHashMap<QueRef> = HashMap::from_iter(zip(ls_query_name_vec, ls_query_struct_vec));
 
             // Make distribution hashmap for analysis 1
-            let mut gene_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut cdd_amr_hashmap1: StringHashMap<f64> = HashMap::new();
-            let mut super_amr_hashmap1: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap1: RcStringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap1: RcStringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap1: RcStringHashMap<f64> = HashMap::new();
 
             // Make distribution hashmap for analysis 2
-            let mut gene_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut cdd_amr_hashmap2: StringHashMap<f64> = HashMap::new();
-            let mut super_amr_hashmap2: StringHashMap<f64> = HashMap::new();
+            let mut gene_amr_hashmap2: RcStringHashMap<f64> = HashMap::new();
+            let mut cdd_amr_hashmap2: RcStringHashMap<f64> = HashMap::new();
+            let mut super_amr_hashmap2: RcStringHashMap<f64> = HashMap::new();
 
             // Look through deeparg hit file
             let mut full_ls_deeparg_hit_file = File::open(format!(
@@ -259,81 +294,136 @@ fn main() {
                 let mut query_struct = ls_query_hashmap.get(&read_id).unwrap().borrow_mut();
                 query_struct.find_deeparg_hit(best_hit);
                 query_struct.update_amr_hashmaps_v1(
-                    &mut gene_amr_hashmap1, &mut cdd_amr_hashmap1, &mut super_amr_hashmap1);
+                    &mut gene_amr_hashmap1, &mut cdd_amr_hashmap1, 
+                    &mut super_amr_hashmap1, &mut domain_name_refs);
                 query_struct.update_amr_hashmaps_v2(
-                    &mut gene_amr_hashmap2, &mut cdd_amr_hashmap2, &mut super_amr_hashmap2);
+                    &mut gene_amr_hashmap2, &mut cdd_amr_hashmap2, 
+                    &mut super_amr_hashmap2, &mut domain_name_refs);
             }
 
-            gene_amr_hashtable_a1 = return_extended_hashtable(&mut gene_amr_hashtable_a1, 
-                gene_amr_hashmap1);
-            cdd_amr_hashtable_a1 = return_extended_hashtable(&mut cdd_amr_hashtable_a1, 
-                cdd_amr_hashmap1);
-            super_amr_hashtable_a1 = return_extended_hashtable(&mut super_amr_hashtable_a1, 
-                super_amr_hashmap1);
+            for query in ls_query_hashmap.values() {
+                let borrowed = query.borrow();
+                if !borrowed.is_deeparg_hit {
+                    continue;
+                }
+                if borrowed.top_diamond_alignment == borrowed.top_deeparg_hit.unwrap() {
+                    continue;
+                }
 
-            gene_amr_hashtable_a2 = return_extended_hashtable(&mut gene_amr_hashtable_a2, 
-                gene_amr_hashmap2);
-            cdd_amr_hashtable_a2 = return_extended_hashtable(&mut cdd_amr_hashtable_a2, 
-                cdd_amr_hashmap2);
-            super_amr_hashtable_a2 = return_extended_hashtable(&mut super_amr_hashtable_a2, 
-                super_amr_hashmap2);
-
-            gene_amr_hashtable_a3 = return_extended_hashtable(&mut gene_amr_hashtable_a3, 
-                gene_amr_hashmap3);
-            cdd_amr_hashtable_a3 = return_extended_hashtable(&mut cdd_amr_hashtable_a3, 
-                cdd_amr_hashmap3);
-            super_amr_hashtable_a3 = return_extended_hashtable(&mut super_amr_hashtable_a3, 
-                super_amr_hashmap3);
+                let dia_doms = borrowed.get_top_diamond_alignment_domain_identifiers();
+                let dee_doms = borrowed.get_top_deeparg_hit_domain_identifiers().unwrap();
+                for (dia_gene_amr, dia_cdd_amr, dia_super_amr) in &dia_doms {
+                    for (dee_gene_amr, dee_cdd_amr, dee_super_amr) in &dee_doms {
+                        if *dia_gene_amr == *dee_gene_amr {
+                            continue;
+                        }
+                        if dia_doms.contains(&(dee_gene_amr.clone(), dee_cdd_amr.clone(), dee_super_amr.clone())) &&
+                            dee_doms.contains(&(dia_gene_amr.clone(), dia_cdd_amr.clone(), dia_super_amr.clone())) {
+                            continue;
+                        }
+                        let dee_gene_amr_info = 
+                            get_domain_info(dee_gene_amr.to_string(), &gene_amr_hashmap1,
+                                &gene_amr_hashmap2, &gene_amr_hashmap3, 
+                                &db_gene_amr_hashmap, &mut domain_name_refs);
+                        let dee_cdd_amr_info = 
+                            get_domain_info(dee_cdd_amr.to_string(), &cdd_amr_hashmap1,
+                                &cdd_amr_hashmap2, &cdd_amr_hashmap3, 
+                                &db_cdd_amr_hashmap, &mut domain_name_refs);
+                        let dee_super_amr_info = 
+                            get_domain_info(dee_super_amr.to_string(), &super_amr_hashmap1,
+                                &super_amr_hashmap2, &super_amr_hashmap3, 
+                                &db_super_amr_hashmap, &mut domain_name_refs);
+                        let dia_gene_amr_info = 
+                            get_domain_info(dia_gene_amr.to_string(), &gene_amr_hashmap1,
+                                &gene_amr_hashmap2, &gene_amr_hashmap3, 
+                                &db_gene_amr_hashmap, &mut domain_name_refs);
+                        let dia_cdd_amr_info = 
+                            get_domain_info(dia_cdd_amr.to_string(), &cdd_amr_hashmap1,
+                                &cdd_amr_hashmap2, &cdd_amr_hashmap3, 
+                                &db_cdd_amr_hashmap, &mut domain_name_refs);
+                        let dia_super_amr_info = 
+                            get_domain_info(dia_super_amr.to_string(), &super_amr_hashmap1,
+                                &super_amr_hashmap2, &super_amr_hashmap3, 
+                                &db_super_amr_hashmap, &mut domain_name_refs);
+                        let key = (sample_id, identity, "LS", [
+                            dia_gene_amr_info, dia_cdd_amr_info, dia_super_amr_info,
+                            dee_gene_amr_info, dee_cdd_amr_info, dee_super_amr_info,
+                        ]);
+                        if !deeparg_not_equal_diamond.contains_key(&key) {
+                            deeparg_not_equal_diamond.insert(key, 1);
+                        }
+                        else {
+                            *deeparg_not_equal_diamond.get_mut(&key).unwrap() += 1;
+                        }
+                    }
+                }
+            }
         }
     }
 
     // Create output files
-    let mut gene_amr_distr_a1 = File::create(format!("analysis_1_gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut cdd_amr_distr_a1 = File::create(format!("analysis_1_cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut super_amr_distr_a1 = File::create(format!("analysis_1_super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-
-    let mut gene_amr_distr_a2 = File::create(format!("analysis_2_gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut cdd_amr_distr_a2 = File::create(format!("analysis_2_cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut super_amr_distr_a2 = File::create(format!("analysis_2_super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-
-    let mut gene_amr_distr_a3 = File::create(format!("analysis_3_gene_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut cdd_amr_distr_a3 = File::create(format!("analysis_3_cdd_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-    let mut super_amr_distr_a3 = File::create(format!("analysis_3_super_amr{DISTRIBUTION_OUTPUT}")).unwrap();
-
-
-
-    write_hashtable_to_file(&mut gene_amr_distr_a1, gene_amr_hashtable_a1);
-    write_hashtable_to_file(&mut cdd_amr_distr_a1, cdd_amr_hashtable_a1);
-    write_hashtable_to_file(&mut super_amr_distr_a1, super_amr_hashtable_a1);
-
-    write_hashtable_to_file(&mut gene_amr_distr_a2, gene_amr_hashtable_a2);
-    write_hashtable_to_file(&mut cdd_amr_distr_a2, cdd_amr_hashtable_a2);
-    write_hashtable_to_file(&mut super_amr_distr_a2, super_amr_hashtable_a2);
-
-    write_hashtable_to_file(&mut gene_amr_distr_a3, gene_amr_hashtable_a3);
-    write_hashtable_to_file(&mut cdd_amr_distr_a3, cdd_amr_hashtable_a3);
-    write_hashtable_to_file(&mut super_amr_distr_a3, super_amr_hashtable_a3);
+    let mut output = File::create(COMPARISON_OUTPUT).unwrap();
+    //Tuple has sample; identity; 
+    // model type; diamond's gene_amr info, cdd_amr info, and super_amr info; deeparg's 
+    // gene_amr info, cdd_amr info, and super_amr info where info is key, distr
+    // in ref, distr in diamond, distr in diamond(restricted) and distr in deeparg
+    let _ = output.write(b"Sample\tAlignment Identity\tModel\tDiamond alignment cdd|gene|amr key\t");
+    let _ = output.write(b"Diamond alignment cdd|gene|amr reference distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|gene|amr diamond distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|gene|amr diamond restricted distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|gene|amr deeparg distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|amr key\t");
+    let _ = output.write(b"Diamond alignment cdd|amr reference distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|amr diamond distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|amr diamond restricted distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|amr deeparg distribution\t");
+    let _ = output.write(b"Diamond alignment super|amr key\t");
+    let _ = output.write(b"Diamond alignment super|amr reference distribution\t");
+    let _ = output.write(b"Diamond alignment super|amr diamond distribution\t");
+    let _ = output.write(b"Diamond alignment super|amr diamond restricted distribution\t");
+    let _ = output.write(b"Diamond alignment super|amr deeparg distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|gene|amr key\t");
+    let _ = output.write(b"DeepARG hit cdd|gene|amr reference distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|gene|amr diamond distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|gene|amr diamond restricted distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|gene|amr deeparg distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|amr key\t");
+    let _ = output.write(b"DeepARG hit cdd|amr reference distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|amr diamond distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|amr diamond restricted distribution\t");
+    let _ = output.write(b"DeepARG hit cdd|amr deeparg distribution\t");
+    let _ = output.write(b"DeepARG hit super|amr key\t");
+    let _ = output.write(b"DeepARG hit super|amr reference distribution\t");
+    let _ = output.write(b"DeepARG hit super|amr diamond distribution\t");
+    let _ = output.write(b"DeepARG hit super|amr diamond restricted distribution\t");
+    let _ = output.write(b"DeepARG hit super|amr deeparg distribution\t");
+    let _ = output.write(b"Diamond alignment cdd|gene|amr/DeepARG hit cdd|gene|amr deeparg count\n");
+    write_hashmap_to_file(&mut output, deeparg_not_equal_diamond);
 }
 
-fn write_hashtable_to_file(file: &mut File, table: StringHashMap<Vec<f64>>) {
-    for row in table.iter() {
-        let _ = file.write(row.0.as_bytes());
-        for val in row.1 {
-            let _ = file.write(format!("\t{}", *val).as_bytes());
-        }
-        let _ = file.write(b"\n");
+fn get_domain_info(dom: String, 
+        hashmap_1: &RcStringHashMap<f64>, hashmap_2: &RcStringHashMap<f64>, 
+        hashmap_3: &RcStringHashMap<f64>, hashmap_db: &RcStringHashMap<f64>, 
+        domain_name_refs: &mut StringHashMap<Rc<String>>) -> String {
+    let dom_refs = domain_name_refs.get(&dom).unwrap();
+    if hashmap_2.get(dom_refs).is_none() && hashmap_1.get(dom_refs).is_none() {
+        panic!("Messed up with {dom}")
     }
-    
-
+    format!("{}\t{}\t{}\t{}\t{}", dom.clone(), *hashmap_db.get(dom_refs).unwrap(), 
+        *hashmap_3.get(dom_refs).unwrap_or(&0.0), *hashmap_2.get(dom_refs).unwrap_or(&0.0),
+        *hashmap_1.get(dom_refs).unwrap_or(&0.0))
 }
 
-fn return_extended_hashtable(hashtable: &mut StringHashMap<Vec<f64>>, 
-        hashmap: StringHashMap<f64>) -> StringHashMap<Vec<f64>>{
-    HashMap::from_iter(hashtable.iter_mut().map(|(x, y)| {
-        if hashmap.contains_key(x) {y.push(*hashmap.get(x).unwrap());}
-        else {y.push(0.0);}
-        (x.clone(), y.clone())
-    }))
+fn write_hashmap_to_file(file: &mut File, map: HashMap<(&str, i32, &str, 
+        [String; 6]), usize, RandomState>) {
+    for row in map.iter() {
+        let _ = file.write(format!("{}\t{}\t{}\t", (*row.0).0,
+            (*row.0).1, (*row.0).2).as_bytes());
+        for val in &(*row.0).3 {
+            let _ = file.write(format!("{}\t", val).as_bytes());
+        }
+        let _ = file.write(format!("{}\n", row.1).as_bytes());
+    }
 }
 
 #[derive(Debug)]
@@ -436,8 +526,23 @@ trait DomainContainer{
         fields[fields.len() - 2].to_string()
     }
 
-    fn update_amr_hashmaps(&self, gene_map: &mut StringHashMap<f64>, 
-            cdd_map: &mut StringHashMap<f64>, super_map: &mut StringHashMap<f64>){
+    fn get_domain_identifiers(&self) -> Vec<(String, String, String)> {
+        let mut domain_identifiers: Vec<(String, String, String)> = vec![];
+        for domain in self.get_domains() {
+            let gene_key = format!("{}|{}|{}", 
+                domain.cdd_acc, self.get_gene_name().to_uppercase(), self.get_classification());
+            let cdd_key = format!("{}|{}", 
+                domain.cdd_acc, self.get_classification());
+            let super_key = format!("{}|{}", 
+                domain.super_acc, self.get_classification());
+            domain_identifiers.push((gene_key, cdd_key, super_key));
+        }
+        return domain_identifiers
+    }
+
+    fn update_amr_hashmaps(&self, gene_map: &mut RcStringHashMap<f64>, 
+            cdd_map: &mut RcStringHashMap<f64>, super_map: &mut RcStringHashMap<f64>,
+            domain_name_refs: &mut StringHashMap<Rc<String>>){
         let domains_weight = self.get_calculated_weights();
         for domain_index in 0..self.get_domains().len() {
             let domain = self.get_domains()[domain_index].clone();
@@ -467,29 +572,56 @@ trait DomainContainer{
                 domains_weight[domain_index].iter().sum::<f64>()
             };
             let gene_key = format!("{}|{}|{}", 
-                domain.cdd_acc, self.get_gene_name(), self.get_classification());
-            if gene_map.contains_key(&gene_key) {
-                *gene_map.get_mut(&gene_key).unwrap() += weight
+                domain.cdd_acc, self.get_gene_name().to_uppercase(), self.get_classification());
+            let gene_key_ref = {
+                if domain_name_refs.contains_key(&gene_key) {
+                    domain_name_refs.get(&gene_key).unwrap().clone()
+                }
+                else {
+                    domain_name_refs.insert(gene_key.clone(), Rc::new(gene_key.clone()));
+                    domain_name_refs.get(&gene_key).unwrap().clone()
+                }
+            };
+            if gene_map.contains_key(&gene_key_ref) {
+                *gene_map.get_mut(&gene_key_ref).unwrap() += weight
                 
             }
             else {
-                gene_map.insert(gene_key, weight);
+                gene_map.insert(gene_key_ref, weight);
             }
             let cdd_key = format!("{}|{}", 
                 domain.cdd_acc, self.get_classification());
-            if cdd_map.contains_key(&cdd_key) {
-                *cdd_map.get_mut(&cdd_key).unwrap() += weight;
+            let cdd_key_ref = {
+                if domain_name_refs.contains_key(&cdd_key) {
+                    domain_name_refs.get(&cdd_key).unwrap().clone()
+                }
+                else {
+                    domain_name_refs.insert(cdd_key.clone(), Rc::new(cdd_key.clone()));
+                    domain_name_refs.get(&cdd_key).unwrap().clone()
+                }
+            };
+            if cdd_map.contains_key(&cdd_key_ref) {
+                *cdd_map.get_mut(&cdd_key_ref).unwrap() += weight;
             }
             else {
-                cdd_map.insert(cdd_key, weight);
+                cdd_map.insert(cdd_key_ref, weight);
             }
             let super_key = format!("{}|{}", 
                 domain.super_acc, self.get_classification());
-            if super_map.contains_key(&super_key) {
-                *super_map.get_mut(&super_key).unwrap() += weight;
+            let super_key_ref = {
+                if domain_name_refs.contains_key(&super_key) {
+                    domain_name_refs.get(&super_key).unwrap().clone()
+                }
+                else {
+                    domain_name_refs.insert(super_key.clone(), Rc::new(super_key.clone()));
+                    domain_name_refs.get(&super_key).unwrap().clone()
+                }
+            };
+            if super_map.contains_key(&super_key_ref) {
+                *super_map.get_mut(&super_key_ref).unwrap() += weight;
             }
             else {
-                super_map.insert(super_key, weight);
+                super_map.insert(super_key_ref, weight);
             }
         }
     }
@@ -550,6 +682,7 @@ struct Alignment{
     matching_reference: Rc<Reference>,
     start: usize,
     end: usize,
+    bitscore: f64,
     domains: Vec<Rc<Domain>>
 }
 
@@ -570,13 +703,14 @@ impl Alignment {
         let matching_reference = ref_hashmap.get(row[1]).unwrap().clone();
         let start = row[8].parse().unwrap();
         let end = row[9].parse().unwrap();
+        let bitscore = row[11].parse().unwrap();
         let mut domains = vec![];
         for domain in matching_reference.domains.iter() {
             if (domain.start >= start && domain.start < end) || (domain.end <= end && domain.end > start) {
                 domains.push(domain.clone())
             }
         }
-        Self { matching_reference, start, end, domains}
+        Self { matching_reference, start, end, bitscore, domains}
     }
     fn get_ref_name(&self) -> &String{
         &self.matching_reference.name
@@ -599,8 +733,25 @@ impl Query{
             top_deeparg_hit: None,
             is_deeparg_hit: false }
     }
+
+    fn get_top_diamond_alignment_domain_identifiers(&self) -> Vec<(String, String, String)> {
+        self.alignments[self.top_diamond_alignment].get_domain_identifiers()
+    }
+
+    fn get_top_deeparg_hit_domain_identifiers(&self) -> Result<Vec<(String, String, String)>, &str> {
+        if self.top_deeparg_hit.is_none() {
+            Err("Query is not part of DeepARG output")
+        }
+        else {
+            Ok(self.alignments[self.top_deeparg_hit.unwrap()].get_domain_identifiers())
+        }
+    }
+
     fn add_alignment(&mut self, row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) {
         self.alignments.push(Alignment::new(row, ref_hashmap));
+        if self.alignments.last().unwrap().bitscore > self.alignments[self.top_diamond_alignment].bitscore {
+            self.top_diamond_alignment = self.alignments.len() - 1;
+        }
     }
     fn find_deeparg_hit(&mut self, best_hit: String) {
         self.is_deeparg_hit = true;
@@ -611,23 +762,26 @@ impl Query{
             }
         }
     }
-    fn update_amr_hashmaps_v1(&self, gene_map: &mut StringHashMap<f64>, 
-            cdd_map: &mut StringHashMap<f64>, super_map: &mut StringHashMap<f64>) {
+    fn update_amr_hashmaps_v1(&self, gene_map: &mut RcStringHashMap<f64>, 
+            cdd_map: &mut RcStringHashMap<f64>, super_map: &mut RcStringHashMap<f64>,
+            domain_name_refs: &mut StringHashMap<Rc<String>>) {
         if self.top_deeparg_hit.is_some() {
             self.alignments[self.top_deeparg_hit.unwrap()]
-                .update_amr_hashmaps(gene_map, cdd_map, super_map);
+                .update_amr_hashmaps(gene_map, cdd_map, super_map, domain_name_refs);
         }
     }
-    fn update_amr_hashmaps_v2(&self, gene_map: &mut StringHashMap<f64>, 
-            cdd_map: &mut StringHashMap<f64>, super_map: &mut StringHashMap<f64>) {
+    fn update_amr_hashmaps_v2(&self, gene_map: &mut RcStringHashMap<f64>, 
+            cdd_map: &mut RcStringHashMap<f64>, super_map: &mut RcStringHashMap<f64>,
+            domain_name_refs: &mut StringHashMap<Rc<String>>) {
         if self.top_deeparg_hit.is_some() {
             self.alignments[self.top_diamond_alignment]
-                .update_amr_hashmaps(gene_map, cdd_map, super_map);
+                .update_amr_hashmaps(gene_map, cdd_map, super_map, domain_name_refs);
         }
     }
-    fn update_amr_hashmaps_v3(&self, gene_map: &mut StringHashMap<f64>, 
-            cdd_map: &mut StringHashMap<f64>, super_map: &mut StringHashMap<f64>) {
+    fn update_amr_hashmaps_v3(&self, gene_map: &mut RcStringHashMap<f64>, 
+            cdd_map: &mut RcStringHashMap<f64>, super_map: &mut RcStringHashMap<f64>,
+            domain_name_refs: &mut StringHashMap<Rc<String>>) {
         self.alignments[self.top_diamond_alignment]
-            .update_amr_hashmaps(gene_map, cdd_map, super_map);
+            .update_amr_hashmaps(gene_map, cdd_map, super_map, domain_name_refs);
     }
 }
