@@ -34,3 +34,6 @@ real_data_test/temp.py
 real_data_test/bacteria_refseq_protein*
 .vscode
 real_data_test/distribution_analysis/target
+real_data_test/database_clustering/db*
+real_data_test/database_clustering/*.csv
+real_data_test/distribution_analysis/*.png
