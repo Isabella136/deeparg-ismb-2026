@@ -6,6 +6,16 @@ use std::iter::zip;
 use std::fs::File;
 use std::rc::Rc;
 
+use domain::DomainContainer;
+use reference::Reference;
+use domain::Domain;
+use query::Query;
+
+pub mod reference;
+pub mod alignment;
+pub mod domain;
+pub mod query;
+
 type RefVec = Vec<Rc<Reference>>;
 type RefRc = Rc<Reference>;
 type QueVec = Vec<RefCell<Query>>;
@@ -91,13 +101,10 @@ fn main() {
         if !ref_name_vec.contains(&ref_name.to_string()) {
             ref_name_vec.push(ref_name.to_string());
             ref_struct_vec.push(
-                Rc::new(Reference {
-                    name: ref_name.to_string(),
-                    domains: vec![Rc::new(Domain { 
+                Rc::new(Reference::new_raw(ref_name.to_string(), vec![Rc::new(Domain { 
                         cdd_acc: ref_name.split('|').last().unwrap().to_string(), 
                         super_acc: ref_name.split('|').last().unwrap().to_string()
-                    })]
-                })
+                    })]))
             );
             let amr = ref_struct_vec.last().unwrap().get_classification();
             if db_amr_count.contains_key(&amr) {
@@ -231,10 +238,10 @@ fn main() {
             // Save trio and al. distribution info
             for query in ls_query_hashmap.values() {
                 let borrowed = query.borrow();
-                if !borrowed.is_deeparg_hit {
+                if !borrowed.is_deeparg_hit() {
                     continue;
                 }
-                if borrowed.top_diamond_alignment == borrowed.top_deeparg_hit.unwrap() {
+                if borrowed.are_diamond_and_deeparg_the_same() {
                     continue;
                 }
 
@@ -383,10 +390,10 @@ fn main() {
             // Save trio and al. distribution info
             for query in ss_query_hashmap.values() {
                 let borrowed = query.borrow();
-                if !borrowed.is_deeparg_hit {
+                if !borrowed.is_deeparg_hit() {
                     continue;
                 }
-                if borrowed.top_diamond_alignment == borrowed.top_deeparg_hit.unwrap() {
+                if borrowed.are_diamond_and_deeparg_the_same() {
                     continue;
                 }
 
@@ -492,237 +499,5 @@ fn write_hashmap_to_file(file: &mut File, map: HashMap<(&str, i32, &str,
             let _ = file.write(format!("{}\t", val).as_bytes());
         }
         let _ = file.write(format!("{}\n", row.1).as_bytes());
-    }
-}
-
-#[derive(Debug)]
-struct Domain {
-    cdd_acc: String,
-    super_acc: String
-}
-
-trait DomainContainer{
-    fn get_domains(&self) -> &Vec<Rc<Domain>>;
-    fn get_name(&self) -> &String;
-
-    fn get_gene_name(&self) -> String {
-        self.get_name().split("|").last().unwrap().to_string()
-    }
-
-    fn get_classification(&self) -> String {
-        let fields: Vec<&str> = self.get_name().split("|").collect();
-        fields[fields.len() - 2].to_string()
-    }
-
-    fn get_domain_identifiers(&self) -> (String, String, String) {
-        if self.get_gene_name().to_uppercase() == "ARNA" && self.get_classification() == "peptide" {
-            //print!("{}\n", self.get_name())
-        }
-        let gene_key = format!("{}|{}|{}", 
-            self.get_domains().iter().map(|x| x.cdd_acc.clone()).collect::<Vec<_>>().join("$"), 
-            self.get_gene_name().to_uppercase(), self.get_classification());
-        let cdd_key = format!("{}|{}", 
-            self.get_domains().iter().map(|x| x.cdd_acc.clone()).collect::<Vec<_>>().join("$"), 
-            self.get_classification());
-        let super_key = format!("{}|{}", 
-            self.get_domains().iter().map(|x| x.super_acc.clone()).collect::<Vec<_>>().join("$"), 
-            self.get_classification());
-        (gene_key, cdd_key, super_key)
-    }
-
-    fn update_amr_hashmaps(&self, gene_map: &mut RcStringHashMap<usize>, 
-            cdd_map: &mut RcStringHashMap<usize>, super_map: &mut RcStringHashMap<usize>,
-            domain_name_refs: &mut StringHashMap<Rc<String>>){
-        let (gene_key, cdd_key, super_key) = self.get_domain_identifiers();
-        let gene_key_ref = {
-            if domain_name_refs.contains_key(&gene_key) {
-                domain_name_refs.get(&gene_key).unwrap().clone()
-            }
-            else {
-                domain_name_refs.insert(gene_key.clone(), Rc::new(gene_key.clone()));
-                domain_name_refs.get(&gene_key).unwrap().clone()
-            }
-        };
-        if gene_map.contains_key(&gene_key_ref) {
-            *gene_map.get_mut(&gene_key_ref).unwrap() += 1
-            
-        }
-        else {
-            gene_map.insert(gene_key_ref, 1);
-        }
-        let cdd_key_ref = {
-            if domain_name_refs.contains_key(&cdd_key) {
-                domain_name_refs.get(&cdd_key).unwrap().clone()
-            }
-            else {
-                domain_name_refs.insert(cdd_key.clone(), Rc::new(cdd_key.clone()));
-                domain_name_refs.get(&cdd_key).unwrap().clone()
-            }
-        };
-        if cdd_map.contains_key(&cdd_key_ref) {
-            *cdd_map.get_mut(&cdd_key_ref).unwrap() += 1;
-        }
-        else {
-            cdd_map.insert(cdd_key_ref, 1);
-        }
-        let super_key_ref = {
-            if domain_name_refs.contains_key(&super_key) {
-                domain_name_refs.get(&super_key).unwrap().clone()
-            }
-            else {
-                domain_name_refs.insert(super_key.clone(), Rc::new(super_key.clone()));
-                domain_name_refs.get(&super_key).unwrap().clone()
-            }
-        };
-        if super_map.contains_key(&super_key_ref) {
-            *super_map.get_mut(&super_key_ref).unwrap() += 1;
-        }
-        else {
-            super_map.insert(super_key_ref, 1);
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Reference {
-    name: String,
-    domains: Vec<Rc<Domain>>
-}
-
-impl DomainContainer for Reference {
-    fn get_domains(&self) -> &Vec<Rc<Domain>> {
-        &self.domains
-    }
-    fn get_name(&self) -> &String {
-        &self.name
-    }
-}
-
-impl Reference {
-    fn new(row: Vec<&str>) -> Self {
-        let name: &str = row[0].split('>').last().unwrap();
-        Self {
-            name: name.to_string(),
-            domains: vec![Rc::new(Domain { 
-                cdd_acc: row[7].to_string(), 
-                super_acc: if row[1] == "specific" {
-                    row[10].to_string()
-                } else {
-                    row[7].to_string() 
-                }
-            })]
-        }
-    }
-    fn add_to_domain(&mut self, row: Vec<&str>) {
-        self.domains.push(Rc::new(Domain { 
-            cdd_acc: row[7].to_string(), 
-            super_acc: if row[1] == "specific" {
-                row[10].to_string()
-            } else {
-                row[7].to_string() 
-            }
-        }))
-    }
-    
-}
-
-#[derive(Debug)]
-struct Alignment{
-    matching_reference: Rc<Reference>,
-    bitscore: f64
-}
-
-impl DomainContainer for Alignment {
-    fn get_domains(&self) -> &Vec<Rc<Domain>> {
-        &self.matching_reference.domains
-    }
-    fn get_name(&self) -> &String {
-        &self.matching_reference.name
-    }
-}
-
-impl Alignment {
-    fn new(row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) -> Self {
-        let matching_reference = ref_hashmap.get(row[1]).unwrap().clone();
-        let bitscore = row[11].parse().unwrap();
-        Self { matching_reference, bitscore}
-    }
-    fn get_ref_name(&self) -> &String{
-        &self.matching_reference.name
-    }
-}
-
-#[derive(Debug)]
-struct Query{
-    alignments: Vec<Alignment>,
-    top_diamond_alignment: usize,      //Should be the first alignment
-    top_deeparg_hit: Option<usize>,    //Should be None until parsing DeepARG output
-    is_deeparg_hit: bool
-}
-
-impl Query{
-    fn new(row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) -> Self {
-        Self { 
-            alignments: vec![Alignment::new(row, ref_hashmap)],
-            top_diamond_alignment: 0usize,
-            top_deeparg_hit: None,
-            is_deeparg_hit: false }
-    }
-
-    fn get_top_diamond_alignment_domain_identifiers(&self) -> (String, String, String) {
-        self.alignments[self.top_diamond_alignment].get_domain_identifiers()
-    }
-
-    fn get_top_deeparg_hit_domain_identifiers(&self) -> Result<(String, String, String), &str> {
-        if self.top_deeparg_hit.is_none() {
-            Err("Query is not part of DeepARG output")
-        }
-        else {
-            Ok(self.alignments[self.top_deeparg_hit.unwrap()].get_domain_identifiers())
-        }
-    }
-    fn get_top_diamond_alignment(&self) -> &Alignment {
-        &self.alignments[self.top_diamond_alignment]
-    }
-    fn get_top_deeparg_alignment(&self) -> &Alignment {
-        &self.alignments[self.top_deeparg_hit.unwrap()]
-    }
-
-    fn add_alignment(&mut self, row: &Vec<&str>, ref_hashmap: &StringHashMap<RefRc>) {
-        self.alignments.push(Alignment::new(row, ref_hashmap));
-        if self.alignments.last().unwrap().bitscore > self.alignments[self.top_diamond_alignment].bitscore {
-            self.top_diamond_alignment = self.alignments.len() - 1;
-        }
-    }
-    fn find_deeparg_hit(&mut self, best_hit: String) {
-        self.is_deeparg_hit = true;
-        for alignment_index in 0..self.alignments.len(){
-            if *self.alignments[alignment_index].get_ref_name() == best_hit {
-                self.top_deeparg_hit = Some(alignment_index);
-                break;
-            }
-        }
-    }
-    fn update_amr_deeparg_hashmaps(&self, gene_map: &mut RcStringHashMap<usize>, 
-            cdd_map: &mut RcStringHashMap<usize>, super_map: &mut RcStringHashMap<usize>,
-            domain_name_refs: &mut StringHashMap<Rc<String>>) {
-        if self.top_deeparg_hit.is_some() {
-            self.alignments[self.top_deeparg_hit.unwrap()]
-                .update_amr_hashmaps(gene_map, cdd_map, super_map, domain_name_refs);
-        }
-    }
-    fn update_amr_restricted_diamond_hashmaps(&self, gene_map: &mut RcStringHashMap<usize>, 
-            cdd_map: &mut RcStringHashMap<usize>, super_map: &mut RcStringHashMap<usize>,
-            domain_name_refs: &mut StringHashMap<Rc<String>>) {
-        if self.top_deeparg_hit.is_some() {
-            self.alignments[self.top_diamond_alignment]
-                .update_amr_hashmaps(gene_map, cdd_map, super_map, domain_name_refs);
-        }
-    }
-    fn update_amr_diamond_hashmaps(&self, gene_map: &mut RcStringHashMap<usize>, 
-            cdd_map: &mut RcStringHashMap<usize>, super_map: &mut RcStringHashMap<usize>,
-            domain_name_refs: &mut StringHashMap<Rc<String>>) {
-        self.alignments[self.top_diamond_alignment]
-            .update_amr_hashmaps(gene_map, cdd_map, super_map, domain_name_refs);
     }
 }
