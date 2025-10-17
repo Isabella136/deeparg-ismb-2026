@@ -4,7 +4,7 @@ setup(
     name='DeepARG',
     version='1.0.4',
     packages=find_packages(
-        exclude=(".git", "data")
+        exclude=(".git", "data", "real_data_test")
     ),
     include_package_data=True,
     package_data={},

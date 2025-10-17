@@ -4,9 +4,9 @@
 #SBATCH --output=deeparg_contig_log.out
 #SBATCH --error=deeparg_contig_log.err
 #SBATCH --time=1:00:00
-#SBATCH --account=cbcb
-#SBATCH --partition=cbcb
-#SBATCH --qos=highmem
+#SBATCH --account=scavenger
+#SBATCH --partition=scavenger
+#SBATCH --qos=scavenger
 #SBATCH --nodes=10
 #SBATCH --ntasks=10
 #SBATCH --ntasks-per-node=1
@@ -17,7 +17,7 @@ MAX_JOBS=10
 running_jobs=0
 
 eval "$(conda shell.bash hook)"
-conda activate ../../../deeparg/deeparg_env/
+conda activate ../../deeparg_env
 module load prodigal
 
 cd ../../
@@ -31,7 +31,7 @@ for biosample in "${biosamples[@]}"; do
     mkdir -p ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_30
     mkdir -p ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_50
     mkdir -p ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_80
-    if ! test -f ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_30/X.mapping.ARG; then
+    # if ! test -f ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_30/X.mapping.ARG; then
         ((running_jobs++))
         echo "running_jobs = $running_jobs"
         srun --exclusive --nodes=1 --mem=128g --output=./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_30/log.out \
@@ -51,9 +51,9 @@ for biosample in "${biosamples[@]}"; do
             wait -n
             ((running_jobs--))
         fi
-    fi
+    # fi
     
-    if ! test -f ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_50/X.mapping.ARG; then
+    # if ! test -f ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_50/X.mapping.ARG; then
         ((running_jobs++))
         echo "running_jobs = $running_jobs"
         srun --exclusive --nodes=1 --mem=128g --output=./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_50/log.out \
@@ -73,8 +73,8 @@ for biosample in "${biosamples[@]}"; do
             wait -n
             ((running_jobs--))
         fi
-    fi
-    if ! test -f ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_80/X.mapping.ARG; then
+    # fi
+    # if ! test -f ./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_80/X.mapping.ARG; then
         ((running_jobs++))
         echo "running_jobs = $running_jobs"
         srun --exclusive --nodes=1 --mem=128g --output=./real_data_test/samples/$biosample/spades/deeparg_results/arg_alignment_identity_80/log.out \
@@ -94,7 +94,7 @@ for biosample in "${biosamples[@]}"; do
             wait -n
             ((running_jobs--))
         fi
-    fi
+    # fi
 done
 echo "done with loop"
 wait
