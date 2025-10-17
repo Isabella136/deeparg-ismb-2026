@@ -9,7 +9,7 @@ class Reference(DomainContainer):
             self.name = arg[0].split('>')[-1]
             self.domains = [Domain(arg)]
         else:
-            raise RuntimeError("Reference initializer was given the wron argument")
+            raise RuntimeError("Reference initializer was given the wrong argument")
 
     def add_length_info(self, length: int):
         self.length = length

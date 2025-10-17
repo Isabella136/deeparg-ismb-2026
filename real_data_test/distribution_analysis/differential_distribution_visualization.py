@@ -12,6 +12,22 @@ PATH_TO_SS = "deeparg_results"
 PATH_TO_LS = "spades/deeparg_results"
 
 AMR_SWITCH_DISTRIBUTION = "amr_switch_distribution.txt"
+CLUSTER_OUTPUT = "cluster.txt"
+TRIO_OUTPUT = "trio.txt"
+DOMAIN_OUTPUT = "domain.txt"
+SUPER_OUTPUT = "super.txt"
+
+# Domains are sorted by bitscore
+def sorted_domains_combo(dom_list: list[str]) -> list[str]:
+    if len(dom_list) == 1: return dom_list
+    first_dom = dom_list[0]
+    recursive_combo_list = sorted_domains_combo(dom_list[1:])
+    extended_combo_list = [
+        "$".join((first_dom, curr_combo)) for curr_combo in recursive_combo_list]
+    extended_combo_list.append(first_dom)
+    extended_combo_list.extend(recursive_combo_list)
+    return extended_combo_list
+    
 
 def main():
     # Read content of real_samples.txt to find biosample ID
@@ -19,7 +35,7 @@ def main():
         sample_id_list = sample_id_buf.read().split('\n')
     
     # Get amr class distribution in database
-    database_amr_count: dict[str, int] =  dict()
+    database_amr_count: dict[str, int] = dict()
 
     # Look through CD features and intialize Reference object
     ref_dict: dict[str, Reference] = dict()
@@ -59,24 +75,71 @@ def main():
     with open(CLSTR_LOC, "r") as clstr_buf:
         clstr_list = clstr_buf.read().split('\n')
     cluster = -1
-    for line in clstr_list:
+    for line in clstr_list[:-1]:
         if '>' == line[0]:
             cluster += 1
         else:
-            name = line.split('>')[-1].split('.')[0]
+            name = line.split('>')[-1].split('...')[0]
             ref_dict[name].define_cluster(cluster)
 
-    # Make vertices for all four ARG categorizing units
-    trio_vertices: dict[str, TrioVertex] = dict()
-    clstr_vertices: dict[str, ClstrVertex] = dict()
-    domain_vertices: dict[str, DomainVertex] = dict()
-    super_vertices: dict[str, SuperVertex] = dict()
+    # Count the time each id appears in reference
+    reference_clstr_id_count: dict[str, int] = dict()
+    reference_trio_id_count: dict[str, int] = dict()
+    reference_dom_id_count: dict[str, int] = dict()
+    reference_super_id_count: dict[str, int] = dict()
+    for ref in ref_dict.values():
+        ref_ids = ref.get_domain_identifiers()
+        (clstr_id, trio_id, dom_id, super_id) = ref_ids
+        if clstr_id in reference_clstr_id_count.keys():
+            reference_clstr_id_count[clstr_id] += 1
+        else:
+            reference_clstr_id_count[clstr_id] = 1
 
+        trio_fields = trio_id.split('|')
+        super_fields = super_id.split('|')
+        dom_list = trio_fields[0].split('$')
+        super_list = super_fields[0].split('$')
+        # We may have numerous domains in gene; should count each potential combination as well
+        dom_combo_list = sorted_domains_combo(dom_list)
+        super_combo_list = sorted_domains_combo(super_list)
+        # We also need to count instances of arg as domain
+        if trio_fields[0] != trio_fields[1]:
+            dom_combo_list.append(trio_fields[1])
+            super_combo_list.append(trio_fields[1])
+        for i in range(len(dom_combo_list)):
+            trio_id = "|".join((dom_combo_list[i], trio_fields[1], trio_fields[2]))
+            if trio_id in reference_trio_id_count.keys():
+                reference_trio_id_count[trio_id] += 1
+            else:
+                reference_trio_id_count[trio_id] = 1
+            dom_id = "|".join((dom_combo_list[i], trio_fields[2]))
+            if dom_id in reference_dom_id_count.keys():
+                reference_dom_id_count[dom_id] += 1
+            else:
+                reference_dom_id_count[dom_id] = 1
+            super_id = "|".join((super_combo_list[i], super_fields[1]))
+            if super_id in reference_super_id_count.keys():
+                reference_super_id_count[super_id] += 1
+            else:
+                reference_super_id_count[super_id] = 1
+        
     amr_switch_info = list()
+
+    cluster_file = open(CLUSTER_OUTPUT, "w")
+    trio_file = open(TRIO_OUTPUT, "w")
+    domain_file = open(DOMAIN_OUTPUT, "w")
+    super_file = open(SUPER_OUTPUT, "w")
+    
     # Go through each run one at a time
     for sample_id in sample_id_list:
         for identity in [30, 50, 80]:
             for model in ["LS", "SS"]:
+                # Make vertices for all four ARG categorizing units
+                trio_vertices: dict[str, TrioVertex] = dict()
+                clstr_vertices: dict[str, ClstrVertex] = dict()
+                domain_vertices: dict[str, DomainVertex] = dict()
+                super_vertices: dict[str, SuperVertex] = dict()
+                
                 # Get Diamond alignment information
                 query_dict: dict[str, Query] = dict()
                 with open("/".join((
@@ -119,7 +182,75 @@ def main():
                 for (dia_to_dee, count) in amr_switch_dict.items():
                     amr_switch_info.append("\t".join((
                         sample_id, str(identity), model, dia_to_dee, str(count))))
-                    
+                
+                for query in query_dict.values():
+                    if query.is_deeparg_hit():
+                        state_a_ids = query.get_top_diamond_alignment_domain_identifiers()
+                        (clstr_a, trio_a, dom_a, super_a) = state_a_ids
+
+                        if clstr_a not in clstr_vertices.keys():
+                            clstr_vertices[clstr_a] = ClstrVertex(clstr_a, reference_clstr_id_count[clstr_a])
+                        if trio_a not in trio_vertices.keys():
+                            trio_vertices[trio_a] = TrioVertex(trio_a, reference_trio_id_count[trio_a])
+                        if dom_a not in domain_vertices.keys():
+                            domain_vertices[dom_a] = DomainVertex(dom_a, reference_dom_id_count[dom_a])
+                        if super_a not in super_vertices.keys():
+                            super_vertices[super_a] = SuperVertex(super_a, reference_super_id_count[super_a])
+
+                        if not query.are_diamond_and_deeparg_the_same():
+                            state_b_ids = query.get_top_deeparg_hit_domain_identifiers()
+                            (clstr_b, trio_b, dom_b, super_b) = state_b_ids
+
+                            if clstr_b not in clstr_vertices.keys():
+                                clstr_vertices[clstr_b] = ClstrVertex(clstr_b, reference_clstr_id_count[clstr_b])
+                            clstr_edge = clstr_vertices[clstr_a].get_edge_from_a(clstr_vertices[clstr_b])
+                            clstr_vertices[clstr_b].add_edge_to_b(clstr_vertices[clstr_a], clstr_edge)
+                        
+                            if trio_b not in trio_vertices.keys():
+                                trio_vertices[trio_b] = TrioVertex(trio_b, reference_trio_id_count[trio_b])
+                            trio_edge = trio_vertices[trio_a].get_edge_from_a(trio_vertices[trio_b])
+                            trio_vertices[trio_b].add_edge_to_b(trio_vertices[trio_a], trio_edge)
+
+                            if dom_b not in trio_vertices.keys():
+                                domain_vertices[dom_b] = DomainVertex(dom_b, reference_dom_id_count[dom_b])
+                            dom_edge = domain_vertices[dom_a].get_edge_from_a(domain_vertices[dom_b])
+                            domain_vertices[dom_b].add_edge_to_b(domain_vertices[dom_a], dom_edge)
+
+                            if super_b not in trio_vertices.keys():
+                                super_vertices[super_b] = SuperVertex(super_b, reference_super_id_count[super_b])
+                            super_edge = super_vertices[super_a].get_edge_from_a(super_vertices[super_b])
+                            super_vertices[super_b].add_edge_to_b(super_vertices[super_a], super_edge)
+                        
+                        else:
+                            clstr_vertices[clstr_a].increment_states_but_not_pair()
+                            trio_vertices[trio_a].increment_states_but_not_pair()
+                            domain_vertices[dom_a].increment_states_but_not_pair()
+                            super_vertices[super_a].increment_states_but_not_pair()
+
+                cluster_file.write(f"Run: {sample_id} - {identity} - {model}\n")
+                for (name, vertex) in clstr_vertices.items():
+                    cluster_file.write(f"{name}\n")
+                    cluster_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
+                    cluster_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")
+
+                trio_file.write(f"Run: {sample_id} - {identity} - {model}\n")
+                for (name, vertex) in trio_vertices.items():
+                    trio_file.write(f"{name}\n")
+                    trio_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
+                    trio_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")
+
+                domain_file.write(f"Run: {sample_id} - {identity} - {model}\n")
+                for (name, vertex) in domain_vertices.items():
+                    domain_file.write(f"{name}\n")
+                    domain_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
+                    domain_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")
+
+                super_file.write(f"Run: {sample_id} - {identity} - {model}\n")
+                for (name, vertex) in super_vertices.items():
+                    super_file.write(f"{name}\n")
+                    super_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
+                    super_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")                
+
     # Output AMR switch distribution information
     with open(AMR_SWITCH_DISTRIBUTION, "w") as amr_switch_buf:
         amr_switch_buf.write("AMR classification\tCount\n")

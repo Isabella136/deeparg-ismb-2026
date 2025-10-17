@@ -17,6 +17,13 @@ class Query:
         for index, alignment in enumerate(self.alignments):
             if alignment.get_name() == best_hit:
                 self.top_deeparg_hit = index
+
+                # If diamond != deeparg but bitscores are equal, set diamond equal to deeparg
+                if not self.are_diamond_and_deeparg_the_same():
+                    diamond_alignment = self.alignments[self.top_diamond_alignment]
+                    if diamond_alignment.get_bitscore() == alignment.get_bitscore():
+                        self.top_diamond_alignment = self.top_deeparg_hit
+
                 break
     
     def is_deeparg_hit(self) -> bool :
@@ -34,7 +41,8 @@ class Query:
     def get_top_diamond_classification(self) -> str :
         return self.get_top_diamond_alignment().get_classification()
 
-    def get_top_diamond_alignment_domain_identifiers(self) -> list[tuple[str, str, str, str]] :
+    def get_top_diamond_alignment_domain_identifiers(self) -> tuple[str, str, str, str] :
+        """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids of best Diamond alignment, respectively"""
         return self.get_top_diamond_alignment().get_domain_identifiers()
     
     def get_top_deeparg_hit(self) -> Alignment :
@@ -46,5 +54,6 @@ class Query:
     def get_top_deeparg_classification(self) -> str : 
         return self.get_top_deeparg_hit().get_classification()
     
-    def get_top_deeparg_hit_domaind_identifiers(self) -> list[tuple[str, str, str, str]] :
+    def get_top_deeparg_hit_domain_identifiers(self) -> tuple[str, str, str, str] :
+        """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids of DeepARG hit, respectively"""
         return self.get_top_deeparg_hit().get_domain_identifiers()

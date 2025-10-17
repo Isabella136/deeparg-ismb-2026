@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class Domain:
     def __init__(self, row: list[str]) :
-        self.cdd_acc = row[7]
+        self.dom_acc = row[7]
         self.super_acc = row[10] if row[1] == "specific" else row[7]
         self.start = int(row[3])
         self.end = int(row[4])
@@ -28,15 +28,16 @@ class DomainContainer(ABC):
         
     
     def get_domain_identifiers(self) -> tuple[str, str, str, str] :
-        cluster_key = "|".join((str(self.get_cluster()), self.get_classification()))
-        self_cdd_accs = [domain.cdd_acc for domain in self.get_domains()]
+        """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids, respectively"""
+        clstr_id = "|".join((str(self.get_cluster()), self.get_classification()))
+        self_dom_accs = [domain.dom_acc for domain in self.get_domains()]
         self_super_accs = [domain.super_acc for domain in self.get_domains()]
-        if len(self_cdd_accs) == 0:
-            self_cdd_accs.append(self.get_arg_id())
+        if len(self_dom_accs) == 0:
+            self_dom_accs.append(self.get_arg_id())
             self_super_accs.append(self.get_arg_id())
-        gene_key = "|".join(("$".join(self_cdd_accs), self.get_arg_id(), self.get_classification()))
-        cdd_key = "|".join(("$".join(self_cdd_accs), self.get_classification()))
-        super_key = "|".join(("$".join(self_super_accs), self.get_classification()))
+        arg_id = "|".join(("$".join(self_dom_accs), self.get_arg_id(), self.get_classification()))
+        dom_id = "|".join(("$".join(self_dom_accs), self.get_classification()))
+        super_id = "|".join(("$".join(self_super_accs), self.get_classification()))
 
-        return (cluster_key, gene_key, cdd_key, super_key)
+        return (clstr_id, arg_id, dom_id, super_id)
         
