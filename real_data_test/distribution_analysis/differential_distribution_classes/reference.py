@@ -20,6 +20,9 @@ class Reference(DomainContainer):
     def add_domain(self, row):
         self.domains.append(Domain(row))
 
+    def get_length(self) -> int :
+        return self.length
+
     def get_domains(self) -> list[Domain]:
         return self.domains
     

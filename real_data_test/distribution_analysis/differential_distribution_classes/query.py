@@ -2,15 +2,36 @@ from differential_distribution_classes.alignment import Alignment
 from differential_distribution_classes.reference import Reference
 
 class Query:
-    def __init__(self, row: list[str], ref_dict: dict[str, Reference]):
-        self.alignments = [Alignment(row, ref_dict)]
-        self.top_diamond_alignment = 0
-        self.deeparg_hit = False
+    deeparg_hit: bool
+    top_deeparg_hit: int
+    above_cov_thresh: bool
+    top_diamond_alignment: int
+    alignments: list[Alignment]
 
-    def add_alignment(self, row: list[str], ref_dict: dict[str, Reference]):
-        self.alignments.append(Alignment(row, ref_dict))
-        if self.alignments[-1].get_bitscore() > self.get_top_diamond_alignment().get_bitscore():
-            self.top_diamond_alignment = len(self.alignments) - 1
+    def __init__(self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool):
+        self.deeparg_hit = False
+        new_alignment = Alignment(row, ref_dict)
+        if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
+            self.above_cov_thresh = True
+            self.alignments = [new_alignment]
+            self.top_diamond_alignment = 0
+        else:
+            self.above_cov_thresh = False
+            self.alignments = list()
+        
+
+    def add_alignment(self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool):
+        new_alignment = Alignment(row, ref_dict)
+        if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
+            if not self.above_cov_thresh: 
+                self.above_cov_thresh = True
+                self.alignments.append(new_alignment)
+                self.top_diamond_alignment = 0
+            else:
+                self.alignments.append(new_alignment)
+                curr_top_alignment = self.get_top_diamond_alignment()
+                if self.alignments[-1].get_bitscore() > curr_top_alignment.get_bitscore():
+                    self.top_diamond_alignment = len(self.alignments) - 1
 
     def add_deeparg_hit(self, best_hit: str):
         self.deeparg_hit = True
@@ -20,11 +41,12 @@ class Query:
 
                 # If diamond != deeparg but bitscores are equal, set diamond equal to deeparg
                 if not self.are_diamond_and_deeparg_the_same():
-                    diamond_alignment = self.alignments[self.top_diamond_alignment]
+                    diamond_alignment = self.get_top_diamond_alignment()
                     if diamond_alignment.get_bitscore() == alignment.get_bitscore():
                         self.top_diamond_alignment = self.top_deeparg_hit
-
-                break
+                        break
+                else:
+                    break
     
     def is_deeparg_hit(self) -> bool :
         return self.deeparg_hit

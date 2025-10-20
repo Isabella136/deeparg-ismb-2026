@@ -7,9 +7,13 @@ class Alignment(DomainContainer):
         self.bitscore = float(row[11])
         self.start = int(row[8])
         self.end = int(row[9])
+        self.al_len = int(row[3])
 
     def get_bitscore(self) -> float:
         return self.bitscore
+    
+    def get_coverage(self) -> float:
+        return (float(self.al_len) / float(self.matching_reference.get_length()))
     
     def get_domains(self) -> list[Domain]:
         aligned_domains = list()

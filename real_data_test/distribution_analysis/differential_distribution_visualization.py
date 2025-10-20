@@ -149,9 +149,9 @@ def main():
                 for alignment in alignment_list[:-1]:
                     row = alignment.split('\t')
                     if (len(query_dict) > 0) and (row[0] in query_dict.keys()):
-                        query_dict[row[0]].add_alignment(row, ref_dict)
+                        query_dict[row[0]].add_alignment(row, ref_dict, model == "LS")
                     else:
-                        query_dict[row[0]] = Query(row, ref_dict)
+                        query_dict[row[0]] = Query(row, ref_dict, model == "LS")
                 alignment_list.clear()
 
                 # Create dict for amr switches
