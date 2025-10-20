@@ -169,7 +169,7 @@ def process(fin, fon, iden, version, evalue, prob, minCoverage, pipeline, versio
                     BH[i[0]][2][9],  # alignment gene end
                     i[0],  # read-id
                     i[1],  # predicted type
-                    x_bh,  # best hit
+                    BH[i[0]][2][1],  # best hit
                     str(i[2]),  # probability
                     BH[i[0]][2][2],  # identity
                     BH[i[0]][2][3],  # alignment length
@@ -188,7 +188,7 @@ def process(fin, fon, iden, version, evalue, prob, minCoverage, pipeline, versio
                     BH[i[0]][2][9],  # alignment gene end
                     i[0],  # read-id
                     i[1],  # predicted type
-                    x_bh,  # best hit
+                    BH[i[0]][2][1],  # best hit
                     str(i[2]),  # probability
                     BH[i[0]][2][2],  # identity
                     BH[i[0]][2][3],  # alignment length
@@ -207,7 +207,7 @@ def process(fin, fon, iden, version, evalue, prob, minCoverage, pipeline, versio
                 BH[i[0]][2][9],  # alignment gene end
                 i[0],  # read-id
                 i[1],  # predicted type
-                x_bh,#"undefined",  # best hit
+                BH[i[0]][2][1],#"undefined",  # best hit
                 str(i[2]),  # probability
                 BH[i[0]][2][2],  # identity
                 BH[i[0]][2][3],  # alignment length
