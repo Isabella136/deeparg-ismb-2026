@@ -45,13 +45,13 @@ def make_alignments_json(fname, iden=50, eval=1e-5, coverage=0.8, BitScore=True,
         try:
             if SF[i[1]]:
                 alignments[i[0]].update({
-                                        i[1]: float(i[measure])
+                                        i[1]: [i[1], float(i[measure]), i]
                                         })
         except:
             try:
                 if SF[i[1]]:
                     alignments[i[0]] = {
-                        i[1]: float(i[measure])
+                        i[1]: [i[1], float(i[measure]), i]
                     }
             except Exception as inst:
                 print(inst)

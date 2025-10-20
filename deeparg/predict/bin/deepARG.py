@@ -45,7 +45,9 @@ def make_xy(alignments, Features):
     #   aignments is a dict of dicts. Each key is the read_id and the value is
     #   a dict where the keys are the features(genes) and the values are the BitScores
     samples = alignments.keys()
-    X = alignments.values()
+    X = list()
+    for feat in alignments.values():
+        X.append({k: v[1] for (k,v) in feat.iteritems()})
     #   make sure that all the features are included in the alignments. To do so, we just
     #   need to take one of the samples and add all the featuers.
     for i in SF:
@@ -157,7 +159,7 @@ def process(fin, fon, iden, version, evalue, prob, minCoverage, pipeline, versio
         # 3 Compute the best Hit
 
         if x_align:
-            x_bh = max(x_align.iteritems(), key=operator.itemgetter(1))[0]
+            x_bh = max(x_align.itervalues(), key=operator.itemgetter(1))[0]
             bs_bh = x_align[x_bh]
             print(x_bh, align[i[0]][x_bh])
             print(BH[i[0]])
@@ -165,16 +167,16 @@ def process(fin, fon, iden, version, evalue, prob, minCoverage, pipeline, versio
                 fo.write("\t".join([
                     # gene where read is from (subtype)
                     x_bh.split("|")[-1].upper(),
-                    BH[i[0]][2][8],  # alignment gene start
-                    BH[i[0]][2][9],  # alignment gene end
+                    bs_bh[2][8],  # alignment gene start
+                    bs_bh[2][9],  # alignment gene end
                     i[0],  # read-id
                     i[1],  # predicted type
                     x_bh,  # best hit
                     str(i[2]),  # probability
-                    BH[i[0]][2][2],  # identity
-                    BH[i[0]][2][3],  # alignment length
-                    BH[i[0]][2][-1],  # bitscore
-                    BH[i[0]][2][-2],  # evalue
+                    bs_bh[2][2],  # identity
+                    bs_bh[2][3],  # alignment length
+                    bs_bh[2][-1],  # bitscore
+                    bs_bh[2][-2],  # evalue
                     '1'  # count
                 ])+"\n"
                 )
