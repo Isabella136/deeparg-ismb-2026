@@ -161,9 +161,10 @@ def process(fin, fon, iden, version, evalue, prob, minCoverage, pipeline, versio
         if x_align:
             x_bh = max(x_align.itervalues(), key=operator.itemgetter(1))[0]
             bs_bh = x_align[x_bh]
-            print(x_bh, align[i[0]][x_bh])
-            print(BH[i[0]])
+            # print(x_bh, align[i[0]][x_bh])
+            # print(BH[i[0]])
             if i[2] >= prob:
+                print(x_align.values())
                 fo.write("\t".join([
                     # gene where read is from (subtype)
                     x_bh.split("|")[-1].upper(),
