@@ -29,6 +29,11 @@ class Vertex(ABC):
         state_b_count = self.state_b.get_state_count()
         return f"State B count\t{state_b_count}\tSwitches from different state A\t{
             "\t".join(f"{name} ({count})" for (name, count) in edge_info)}"
+    
+    def get_adjacent_vertices(self) -> list["Vertex"] :
+        adjacent_vertices = self.state_a.get_adjacent_vertices()
+        adjacent_vertices.extend(self.state_b.get_adjacent_vertices())
+        return adjacent_vertices
 
     @abstractmethod
     def get_name(self) -> str :
@@ -50,8 +55,14 @@ class Edge:
 
     def get_count(self) -> int :
         return self.pair_count
+    
+    def get_vertex_a(self) -> Vertex :
+        return self.vertex_a
+    
+    def get_vertex_b(self) -> Vertex :
+        return self.vertex_b
 
-class State:
+class State(ABC):
     edges: dict[str, Edge]
     state_count: int
     vertex: Vertex
@@ -74,6 +85,11 @@ class State:
             edge_info.append((state_b, edge.get_count()))
 
         return edge_info
+    
+    @abstractmethod
+    def get_adjacent_vertices(self) -> list[Vertex]:
+        pass
+        
 
 class StateA(State):
     def __init__(self, vertex: Vertex):
@@ -86,6 +102,9 @@ class StateA(State):
         if state_b_name not in self.edges.keys():
             self.edges[state_b_name] = Edge(self.vertex, vertex_b)
         return(self.edges[state_b_name])
+    
+    def get_adjacent_vertices(self) -> list[Vertex]:
+        return [e.get_vertex_b() for e in self.edges.values()]
 
 class StateB(State):
     def __init__(self, vertex: Vertex):
@@ -97,6 +116,9 @@ class StateB(State):
         state_a_name = vertex_a.get_name()
         if state_a_name not in self.edges.keys():
             self.edges[state_a_name] = edge
+
+    def get_adjacent_vertices(self) -> list[Vertex]:
+        return [e.get_vertex_a() for e in self.edges.values()]
 
 class TrioVertex(Vertex):
     dom_acc: str
