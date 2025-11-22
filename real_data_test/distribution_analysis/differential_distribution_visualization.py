@@ -1,6 +1,8 @@
 from differential_distribution_classes.graph_items import TrioVertex, ClstrVertex, DomainVertex, SuperVertex
-from differential_distribution_classes.query import Query
 from differential_distribution_classes.reference import Reference
+from differential_distribution_classes.graph import Graph
+from differential_distribution_classes.query import Query
+import os
 
 CDD_DIR = "../../CDD_features/"
 REF_LOC = "../../data/database/v2/features.fasta"
@@ -12,10 +14,11 @@ PATH_TO_SS = "deeparg_results"
 PATH_TO_LS = "spades/deeparg_results"
 
 AMR_SWITCH_DISTRIBUTION = "amr_switch_distribution.txt"
-CLUSTER_OUTPUT = "cluster.txt"
-TRIO_OUTPUT = "trio.txt"
-DOMAIN_OUTPUT = "domain.txt"
-SUPER_OUTPUT = "super.txt"
+CLR_LOC = "center_log_ratio_transform"
+CLUSTER_OUTPUT = "cluster.tsv"
+TRIO_OUTPUT = "trio.tsv"
+DOMAIN_OUTPUT = "domain.tsv"
+SUPER_OUTPUT = "super.tsv"
 
 # Domains are sorted by bitscore
 def sorted_domains_combo(dom_list: list[str]) -> list[str]:
@@ -123,12 +126,12 @@ def main():
             else:
                 reference_super_id_count[super_id] = 1
         
+    # Create list of AMR switch distributions to output later
     amr_switch_info = list()
 
-    cluster_file = open(CLUSTER_OUTPUT, "w")
-    trio_file = open(TRIO_OUTPUT, "w")
-    domain_file = open(DOMAIN_OUTPUT, "w")
-    super_file = open(SUPER_OUTPUT, "w")
+    # Check to see if center log ratio transform directory exist, or make one
+    if not os.path.exists(CLR_LOC):
+        os.mkdir(CLR_LOC)
     
     # Go through each run one at a time
     for sample_id in sample_id_list:
@@ -179,10 +182,13 @@ def main():
                         else:
                             amr_switch_dict[key] = 1
                 deeparg_list.clear()
+
+                # Save AMR switch distribution for current run
                 for (dia_to_dee, count) in amr_switch_dict.items():
                     amr_switch_info.append("\t".join((
                         sample_id, str(identity), model, dia_to_dee, str(count))))
                 
+                # Create vertices nd edges to represent categories and pairs, respectively
                 for query in query_dict.values():
                     if query.is_deeparg_hit():
                         state_a_ids = query.get_top_diamond_alignment_domain_identifiers()
@@ -211,12 +217,12 @@ def main():
                             trio_edge = trio_vertices[trio_a].get_edge_from_a(trio_vertices[trio_b])
                             trio_vertices[trio_b].add_edge_to_b(trio_vertices[trio_a], trio_edge)
 
-                            if dom_b not in trio_vertices.keys():
+                            if dom_b not in domain_vertices.keys():
                                 domain_vertices[dom_b] = DomainVertex(dom_b, reference_dom_id_count[dom_b])
                             dom_edge = domain_vertices[dom_a].get_edge_from_a(domain_vertices[dom_b])
                             domain_vertices[dom_b].add_edge_to_b(domain_vertices[dom_a], dom_edge)
 
-                            if super_b not in trio_vertices.keys():
+                            if super_b not in super_vertices.keys():
                                 super_vertices[super_b] = SuperVertex(super_b, reference_super_id_count[super_b])
                             super_edge = super_vertices[super_a].get_edge_from_a(super_vertices[super_b])
                             super_vertices[super_b].add_edge_to_b(super_vertices[super_a], super_edge)
@@ -227,29 +233,26 @@ def main():
                             domain_vertices[dom_a].increment_states_but_not_pair()
                             super_vertices[super_a].increment_states_but_not_pair()
 
-                cluster_file.write(f"Run: {sample_id} - {identity} - {model}\n")
-                for (name, vertex) in clstr_vertices.items():
-                    cluster_file.write(f"{name}\n")
-                    cluster_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
-                    cluster_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")
+                # Create graphs then build center log ratio transform tables
+                clstr_graph = Graph(clstr_vertices)
+                clstr_graph.get_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{CLUSTER_OUTPUT}",
+                    sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
 
-                trio_file.write(f"Run: {sample_id} - {identity} - {model}\n")
-                for (name, vertex) in trio_vertices.items():
-                    trio_file.write(f"{name}\n")
-                    trio_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
-                    trio_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")
+                trio_graph = Graph(trio_vertices)
+                trio_graph.get_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{TRIO_OUTPUT}",
+                    sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
 
-                domain_file.write(f"Run: {sample_id} - {identity} - {model}\n")
-                for (name, vertex) in domain_vertices.items():
-                    domain_file.write(f"{name}\n")
-                    domain_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
-                    domain_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")
+                domain_graph = Graph(domain_vertices)
+                domain_graph.get_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{DOMAIN_OUTPUT}",
+                    sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
 
-                super_file.write(f"Run: {sample_id} - {identity} - {model}\n")
-                for (name, vertex) in super_vertices.items():
-                    super_file.write(f"{name}\n")
-                    super_file.write(f"{vertex.get_state_a_to_state_b_info()}\n")
-                    super_file.write(f"{vertex.get_state_b_from_state_a_info()}\n")                
+                super_graph = Graph(super_vertices)
+                super_graph.get_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{SUPER_OUTPUT}",
+                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)             
 
     # Output AMR switch distribution information
     with open(AMR_SWITCH_DISTRIBUTION, "w") as amr_switch_buf:

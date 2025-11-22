@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import numpy as np
 
 class Vertex(ABC):
     amr_cl: str
@@ -34,6 +35,15 @@ class Vertex(ABC):
         adjacent_vertices = self.state_a.get_adjacent_vertices()
         adjacent_vertices.extend(self.state_b.get_adjacent_vertices())
         return adjacent_vertices
+    
+    def get_state_a_count(self) -> np.double :
+        return np.double(self.state_a.get_state_count())
+    
+    def get_state_b_count(self) -> np.double :
+        return np.double(self.state_b.get_state_count())
+    
+    def get_state_i_count(self) -> np.double :
+        return np.double(self.ref_count)
 
     @abstractmethod
     def get_name(self) -> str :
