@@ -31,9 +31,10 @@ class Vertex(ABC):
         return f"State B count\t{state_b_count}\tSwitches from different state A\t{
             "\t".join(f"{name} ({count})" for (name, count) in edge_info)}"
     
-    def get_adjacent_vertices(self) -> list["Vertex"] :
+    # def get_adjacent_vertices(self) -> list["Vertex"] :
+    def get_adjacent_vertices(self) -> dict[str, "Vertex"] :
         adjacent_vertices = self.state_a.get_adjacent_vertices()
-        adjacent_vertices.extend(self.state_b.get_adjacent_vertices())
+        adjacent_vertices.update(self.state_b.get_adjacent_vertices())
         return adjacent_vertices
     
     def get_state_a_count(self) -> np.double :
@@ -97,7 +98,8 @@ class State(ABC):
         return edge_info
     
     @abstractmethod
-    def get_adjacent_vertices(self) -> list[Vertex]:
+    # def get_adjacent_vertices(self) -> list[Vertex]:
+    def get_adjacent_vertices(self) -> dict[str, Vertex] :
         pass
         
 
@@ -113,8 +115,10 @@ class StateA(State):
             self.edges[state_b_name] = Edge(self.vertex, vertex_b)
         return(self.edges[state_b_name])
     
-    def get_adjacent_vertices(self) -> list[Vertex]:
-        return [e.get_vertex_b() for e in self.edges.values()]
+    # def get_adjacent_vertices(self) -> list[Vertex]:
+    #     return [e.get_vertex_b() for e in self.edges.values()]
+    def get_adjacent_vertices(self) -> dict[str, Vertex]:
+        return {e.get_vertex_b().get_name(): e.get_vertex_b() for e in self.edges.values()}
 
 class StateB(State):
     def __init__(self, vertex: Vertex):
@@ -127,8 +131,10 @@ class StateB(State):
         if state_a_name not in self.edges.keys():
             self.edges[state_a_name] = edge
 
-    def get_adjacent_vertices(self) -> list[Vertex]:
-        return [e.get_vertex_a() for e in self.edges.values()]
+    # def get_adjacent_vertices(self) -> list[Vertex]:
+    #     return [e.get_vertex_a() for e in self.edges.values()]
+    def get_adjacent_vertices(self) -> dict[str, Vertex]:
+        return {e.get_vertex_a().get_name(): e.get_vertex_a() for e in self.edges.values()}
 
 class TrioVertex(Vertex):
     dom_acc: str

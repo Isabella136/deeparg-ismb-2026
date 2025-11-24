@@ -235,24 +235,36 @@ def main():
 
                 # Create graphs then build center log ratio transform tables
                 clstr_graph = Graph(clstr_vertices)
-                clstr_graph.get_clr_transform().to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{CLUSTER_OUTPUT}",
+                clstr_graph.get_connected_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{CLUSTER_OUTPUT}",
+                    sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
+                clstr_graph.get_adjacent_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{CLUSTER_OUTPUT}",
                     sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
 
                 trio_graph = Graph(trio_vertices)
-                trio_graph.get_clr_transform().to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{TRIO_OUTPUT}",
+                trio_graph.get_connected_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{TRIO_OUTPUT}",
+                    sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
+                trio_graph.get_adjacent_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{TRIO_OUTPUT}",
                     sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
 
                 domain_graph = Graph(domain_vertices)
-                domain_graph.get_clr_transform().to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{DOMAIN_OUTPUT}",
+                domain_graph.get_connected_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{DOMAIN_OUTPUT}",
+                    sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
+                domain_graph.get_adjacent_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{DOMAIN_OUTPUT}",
                     sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
 
                 super_graph = Graph(super_vertices)
-                super_graph.get_clr_transform().to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_{SUPER_OUTPUT}",
-                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)             
+                super_graph.get_connected_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{SUPER_OUTPUT}",
+                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)
+                super_graph.get_adjacent_clr_transform().to_csv(
+                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{SUPER_OUTPUT}",
+                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)
 
     # Output AMR switch distribution information
     with open(AMR_SWITCH_DISTRIBUTION, "w") as amr_switch_buf:
