@@ -24,3 +24,6 @@ def clr_transform(distr_value: np.double, geom_mean: np.double) -> np.double:
     if distr_value == 0:
         return -1 * np.inf
     return np.log(distr_value/geom_mean)
+
+def relative_abundance(array: np.array) -> np.array:
+    return array / np.sum(array)
