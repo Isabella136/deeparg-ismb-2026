@@ -25,6 +25,21 @@ class DomainContainer(ABC):
     
     def get_classification(self) -> str :
         return self.get_name().split("|")[-2]
+    
+    def get_groupings(self) -> tuple[str, str, str, str, str] :
+        """Returns clstr, arg, dom, super, and amr, respectively"""
+        clstr_id = str(self.get_cluster)
+        arg_id = self.get_arg_id()
+        dom_accs = [domain.dom_acc for domain in self.get_domains()]
+        super_accs = [domain.super_acc for domain in self.get_domains()]
+        if len(dom_accs) == 0:
+            dom_accs.append(self.get_arg_id())
+            super_accs.append(self.get_arg_id())
+        dom_id = "$".join(dom_accs)
+        super_id = "$".join(super_accs)
+        amr_class_id = self.get_classification()
+        return (clstr_id, arg_id, dom_id, super_id, amr_class_id)
+
         
     
     def get_domain_identifiers(self) -> tuple[str, str, str, str] :

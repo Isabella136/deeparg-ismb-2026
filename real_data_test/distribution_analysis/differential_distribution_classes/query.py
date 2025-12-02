@@ -1,5 +1,7 @@
 from differential_distribution_classes.alignment import Alignment
 from differential_distribution_classes.reference import Reference
+import pandas as pd
+import numpy as np
 
 class Query:
     deeparg_hit: bool
@@ -56,6 +58,15 @@ class Query:
             raise RuntimeError("You didn't check to see if query is a deeparg hit")
         
         return (self.top_diamond_alignment == self.top_deeparg_hit)
+    
+    def get_all_alignments_names(self) -> list[str]:
+        return [alignment.get_name() for alignment in self.alignments]
+    
+    def get_all_alignment_groupings(self) -> list[tuple[str]]:
+        return [alignment.get_groupings() for alignment in self.alignments]
+    
+    def get_all_alignment_bitscores(self) -> list[float] :
+        return [alignment.get_bitscore() for alignment in self.alignments]
 
     def get_top_diamond_alignment(self) -> Alignment :
         return self.alignments[self.top_diamond_alignment]
@@ -73,9 +84,31 @@ class Query:
         
         return self.alignments[self.top_deeparg_hit]
     
-    def get_top_deeparg_classification(self) -> str : 
+    def get_top_deeparg_classification(self, error: bool = True) -> str : 
+        if not error and not self.deeparg_hit:
+            return "none"
         return self.get_top_deeparg_hit().get_classification()
     
     def get_top_deeparg_hit_domain_identifiers(self) -> tuple[str, str, str, str] :
         """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids of DeepARG hit, respectively"""
         return self.get_top_deeparg_hit().get_domain_identifiers()
+    
+    def create_query_vector(self) -> "QueryVector":
+        return QueryVector(self)
+    
+class QueryVector:
+    feature_matrix: pd.DataFrame
+    deeparg_class: str
+    
+    def __init__(self, query: Query):
+        self.deeparg_class = query.get_top_deeparg_classification(False)
+        names = query.get_all_alignments_names()
+        groupings = np.array(query.get_all_alignment_groupings())
+        groupings.dtype.names=["clstr", "arg", "dom", "super", "amr"]
+        index = pd.MultiIndex(levels=[
+            groupings["clstr"], groupings["arg"], groupings["dom"],
+            groupings["super"], groupings["amr"], names])
+        self.feature_matrix = pd.DataFrame(
+            data=query.get_all_alignment_bitscores(), index=index)
+        
+        

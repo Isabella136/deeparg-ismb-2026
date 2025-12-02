@@ -245,10 +245,6 @@ def main():
                 clstr_relative_abundance_clr.to_csv(
                     path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{CLUSTER_OUTPUT}",
                     sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
-                clstr_adjacent_clr = clstr_graph.get_adjacent_clr_transform()
-                clstr_adjacent_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{CLUSTER_OUTPUT}",
-                    sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
 
                 trio_graph = Graph(trio_vertices)
                 trio_connected_clr = trio_graph.get_connected_clr_transform()
@@ -258,10 +254,6 @@ def main():
                 trio_relative_abundance_clr = trio_graph.get_relative_abundance()
                 trio_relative_abundance_clr.to_csv(
                     path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{TRIO_OUTPUT}",
-                    sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
-                trio_adjacent_clr = trio_graph.get_adjacent_clr_transform()
-                trio_adjacent_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{TRIO_OUTPUT}",
                     sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
 
                 domain_graph = Graph(domain_vertices)
@@ -273,10 +265,6 @@ def main():
                 domain_relative_abundance_clr.to_csv(
                     path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{DOMAIN_OUTPUT}",
                     sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
-                domain_adjacent_clr = domain_graph.get_adjacent_clr_transform()
-                domain_adjacent_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{DOMAIN_OUTPUT}",
-                    sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
 
                 super_graph = Graph(super_vertices)
                 super_connected_clr = super_graph.get_connected_clr_transform()
@@ -286,10 +274,6 @@ def main():
                 super_relative_abundance_clr = super_graph.get_relative_abundance()
                 super_relative_abundance_clr.to_csv(
                     path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{SUPER_OUTPUT}",
-                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)
-                super_adjacent_clr = super_graph.get_adjacent_clr_transform()
-                super_adjacent_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_adjacent_{SUPER_OUTPUT}",
                     sep="\t", index_label="super|amr", float_format='{:.4f}'.format)
 
                 # And now let's output three mega tables where each combos of cluster and 
@@ -306,136 +290,86 @@ def main():
                 all_combo_indices = pd.MultiIndex.from_tuples(all_combo_tuples, names=[
                     "cluster|amr", "trio", "domain|amr", "super|amr"])
                 all_combo_table = pd.DataFrame(
-                    np.empty(shape=[len(all_combo_tuples), 28]),
+                    np.empty(shape=[len(all_combo_tuples), 16]),
                     index=all_combo_indices, 
                     columns=[
-                        "cluster|amr state I connected clr", "cluster|amr state I adjacent clr", 
-                        "cluster|amr state A connected clr", "cluster|amr state A adjacent clr", 
-                        "cluster|amr state B connected clr", "cluster|amr state B adjacent clr", 
-                        "cluster|amr state A to B sign", "trio state I connected clr", 
-                        "trio state I adjacent clr", "trio state A connected clr", 
-                        "trio state A adjacent clr", "trio state B connected clr", 
-                        "trio state B adjacent clr", "trio state A to B sign",
-                        "domain|amr state I connected clr", "domain|amr state I adjacent clr", 
-                        "domain|amr state A connected clr", "domain|amr state A adjacent clr",
-                        "domain|amr state B connected clr", "domain|amr state B adjacent clr",
-                        "domain|amr state A to B sign", "super|amr state I connected clr", 
-                        "super|amr state I adjacent clr", "super|amr state A connected clr", 
-                        "super|amr state A adjacent clr", "super|amr state B connected clr", 
-                        "super|amr state B adjacent clr", "super|amr state A to B sign"])
+                        "cluster|amr state I connected clr", "cluster|amr state A connected clr",
+                        "cluster|amr state B connected clr", "cluster|amr state A to B sign", 
+                        "trio state I connected clr", "trio state A connected clr", 
+                        "trio state B connected clr", "trio state A to B sign",
+                        "domain|amr state I connected clr", "domain|amr state A connected clr",
+                        "domain|amr state B connected clr", "domain|amr state A to B sign", 
+                        "super|amr state I connected clr", "super|amr state A connected clr", 
+                        "super|amr state B connected clr", "super|amr state A to B sign"])
                 
                 all_combo_table["cluster|amr state I connected clr"] = [
                     clstr_connected_clr.at[x, "state I clr"]
                     for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                all_combo_table["cluster|amr state I adjacent clr"] = [
-                    clstr_adjacent_clr.at[x, "state I clr"] 
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
                 all_combo_table["cluster|amr state A connected clr"] = [
                     clstr_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                all_combo_table["cluster|amr state A adjacent clr"] = [
-                    clstr_adjacent_clr.at[x, "state A clr"] 
                     for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
                 all_combo_table["cluster|amr state B connected clr"] = [
                     clstr_connected_clr.at[x, "state B clr"]
                     for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                all_combo_table["cluster|amr state B adjacent clr"] = [
-                    clstr_adjacent_clr.at[x, "state B clr"] 
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
                 all_combo_table["cluster|amr state A to B sign"] = [
-                    clstr_adjacent_clr.at[x, "state B - state A sign"] 
+                    clstr_connected_clr.at[x, "state B - state A sign"] 
                     for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
                 
                 all_combo_table["trio state I connected clr"] = [
                     trio_connected_clr.at[x, "state I clr"]
                     for x in list(all_combo_indices.get_level_values("trio").values)]
-                all_combo_table["trio state I adjacent clr"] = [
-                    trio_adjacent_clr.at[x, "state I clr"] 
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
                 all_combo_table["trio state A connected clr"] = [
                     trio_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
-                all_combo_table["trio state A adjacent clr"] = [
-                    trio_adjacent_clr.at[x, "state A clr"] 
                     for x in list(all_combo_indices.get_level_values("trio").values)]
                 all_combo_table["trio state B connected clr"] = [
                     trio_connected_clr.at[x, "state B clr"]
                     for x in list(all_combo_indices.get_level_values("trio").values)]
-                all_combo_table["trio state B adjacent clr"] = [
-                    trio_adjacent_clr.at[x, "state B clr"] 
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
                 all_combo_table["trio state A to B sign"] = [
-                    trio_adjacent_clr.at[x, "state B - state A sign"] 
+                    trio_connected_clr.at[x, "state B - state A sign"] 
                     for x in list(all_combo_indices.get_level_values("trio").values)]
                 
                 all_combo_table["domain|amr state I connected clr"] = [
                     domain_connected_clr.at[x, "state I clr"]
                     for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                all_combo_table["domain|amr state I adjacent clr"] = [
-                    domain_adjacent_clr.at[x, "state I clr"] 
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
                 all_combo_table["domain|amr state A connected clr"] = [
                     domain_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                all_combo_table["domain|amr state A adjacent clr"] = [
-                    domain_adjacent_clr.at[x, "state A clr"] 
                     for x in list(all_combo_indices.get_level_values("domain|amr").values)]
                 all_combo_table["domain|amr state B connected clr"] = [
                     domain_connected_clr.at[x, "state B clr"]
                     for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                all_combo_table["domain|amr state B adjacent clr"] = [
-                    domain_adjacent_clr.at[x, "state B clr"] 
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
                 all_combo_table["domain|amr state A to B sign"] = [
-                    domain_adjacent_clr.at[x, "state B - state A sign"] 
+                    domain_connected_clr.at[x, "state B - state A sign"] 
                     for x in list(all_combo_indices.get_level_values("domain|amr").values)]
                 
                 all_combo_table["super|amr state I connected clr"] = [
                     super_connected_clr.at[x, "state I clr"]
                     for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                all_combo_table["super|amr state I adjacent clr"] = [
-                    super_adjacent_clr.at[x, "state I clr"] 
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
                 all_combo_table["super|amr state A connected clr"] = [
                     super_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                all_combo_table["super|amr state A adjacent clr"] = [
-                    super_adjacent_clr.at[x, "state A clr"] 
                     for x in list(all_combo_indices.get_level_values("super|amr").values)]
                 all_combo_table["super|amr state B connected clr"] = [
                     super_connected_clr.at[x, "state B clr"]
                     for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                all_combo_table["super|amr state B adjacent clr"] = [
-                    super_adjacent_clr.at[x, "state B clr"] 
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
                 all_combo_table["super|amr state A to B sign"] = [
-                    super_adjacent_clr.at[x, "state B - state A sign"] 
+                    super_connected_clr.at[x, "state B - state A sign"] 
                     for x in list(all_combo_indices.get_level_values("super|amr").values)]
                 
                 trio_combo_table = all_combo_table.droplevel(["domain|amr","super|amr"])
                 domain_combo_table = all_combo_table[[
-                    "cluster|amr state I connected clr", "cluster|amr state I adjacent clr",
-                    "cluster|amr state A connected clr", "cluster|amr state A adjacent clr",
-                    "cluster|amr state A connected clr", "cluster|amr state A adjacent clr",
-                    "cluster|amr state A to B sign", "domain|amr state I connected clr", 
-                    "domain|amr state I adjacent clr", "domain|amr state A connected clr", 
-                    "domain|amr state A adjacent clr", "domain|amr state B connected clr", 
-                    "domain|amr state B adjacent clr", "domain|amr state A to B sign", 
-                    "super|amr state I connected clr", "super|amr state I adjacent clr",
-                    "super|amr state A connected clr", "super|amr state A adjacent clr",
-                    "super|amr state B connected clr", "super|amr state B adjacent clr", 
-                    "super|amr state A to B sign"]]
+                    "cluster|amr state I connected clr", "cluster|amr state A connected clr",
+                    "cluster|amr state A connected clr", "cluster|amr state A to B sign", 
+                    "domain|amr state I connected clr", "domain|amr state A connected clr", 
+                    "domain|amr state B connected clr", "domain|amr state A to B sign", 
+                    "super|amr state I connected clr", "super|amr state A connected clr", 
+                    "super|amr state B connected clr", "super|amr state A to B sign"]]
                 domain_combo_table = domain_combo_table.droplevel(["trio","super|amr"])
                 domain_combo_table = domain_combo_table.loc[
                     ~domain_combo_table.index.duplicated(keep='first'), :]
                 super_combo_table = all_combo_table[[
-                    "cluster|amr state I connected clr", "cluster|amr state I adjacent clr", 
-                        "cluster|amr state A connected clr", "cluster|amr state A adjacent clr", 
-                        "cluster|amr state B connected clr", "cluster|amr state B adjacent clr", 
-                        "cluster|amr state A to B sign", "super|amr state I connected clr", 
-                        "super|amr state I adjacent clr", "super|amr state A connected clr", 
-                        "super|amr state A adjacent clr", "super|amr state B connected clr", 
-                        "super|amr state B adjacent clr", "super|amr state A to B sign"]]
+                    "cluster|amr state I connected clr", "cluster|amr state A connected clr",
+                    "cluster|amr state B connected clr", "cluster|amr state A to B sign", 
+                    "super|amr state I connected clr", "super|amr state A connected clr", 
+                    "super|amr state B connected clr", "super|amr state A to B sign"]]
                 super_combo_table = super_combo_table.droplevel(["trio","domain|amr"])
                 super_combo_table = super_combo_table.loc[
                     ~super_combo_table.index.duplicated(keep='first'), :]
