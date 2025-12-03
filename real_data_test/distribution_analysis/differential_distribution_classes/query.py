@@ -107,8 +107,19 @@ class QueryVector:
         groupings.dtype.names=["clstr", "arg", "dom", "super", "amr"]
         index = pd.MultiIndex(levels=[
             groupings["clstr"], groupings["arg"], groupings["dom"],
-            groupings["super"], groupings["amr"], names])
+            groupings["super"], groupings["amr"], names], names=[
+                "clstr", "arg", "dom", "super", "amr", "names"])
         self.feature_matrix = pd.DataFrame(
             data=query.get_all_alignment_bitscores(), index=index)
         
+    def has_multiple_possible_classes(self) -> bool :
+        return len(self.feature_matrix.index.get_level_values("amr").drop_duplicates()) > 1
+    
+    def is_deeparg_hit(self) -> bool :
+        return self.deeparg_class != "none"
+    
+    def get_deeparg_class(self) -> str :
+        return self.deeparg_class
         
+    def get_reference_names(self) -> set[str] :
+        return set(self.feature_matrix.index.get_level_values("names").values)
