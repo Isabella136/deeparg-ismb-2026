@@ -28,7 +28,7 @@ class DomainContainer(ABC):
     
     def get_groupings(self) -> tuple[str, str, str, str, str] :
         """Returns clstr, arg, dom, super, and amr, respectively"""
-        clstr_id = str(self.get_cluster)
+        clstr_id = str(self.get_cluster())
         arg_id = self.get_arg_id()
         dom_accs = [domain.dom_acc for domain in self.get_domains()]
         super_accs = [domain.super_acc for domain in self.get_domains()]

@@ -12,6 +12,7 @@ sys.path.append('../')
 
 from differential_distribution_classes.reference import Reference
 from differential_distribution_classes.query import Query, QueryVector
+from helper_classes.feature_grouping import FeatureGroupBuilder
 
 CDD_DIR = "../../../CDD_features/"
 REF_LOC = "../../../data/database/v2/features.fasta"
@@ -123,7 +124,7 @@ def main():
             # Get Diamond alignment information
             query_dict: dict[str, Query] = dict()
             with open("/".join((
-                    "..", "samples", sample_id, PATH_TO_LS if model=="LS" else PATH_TO_SS,
+                    "../..", "samples", sample_id, PATH_TO_LS if model=="LS" else PATH_TO_SS,
                     f"arg_alignment_identity_30", ALIGNMENT_FILE)), "r") as alignment_buf:
                 alignment_list = alignment_buf.read().split('\n')
             for alignment in alignment_list[:-1]:
@@ -136,7 +137,7 @@ def main():
 
             # Get DeepARG hit information
             with open("/".join((
-                    "..", "samples", sample_id, PATH_TO_LS if model=="LS" else PATH_TO_SS,
+                    "../..", "samples", sample_id, PATH_TO_LS if model=="LS" else PATH_TO_SS,
                     f"arg_alignment_identity_30", DEEPARG_HIT_FILE)), "r") as deeparg_buf:
                 deeparg_list = deeparg_buf.read().split('\n')
             for hit in deeparg_list[1:-1]:
@@ -146,8 +147,10 @@ def main():
                 # Save alignment that matches with best hit (row[5]) in top_deeparg_hit
                 query_dict[row[3]].add_deeparg_hit(row[5])
             deeparg_list.clear()
-            query_vectors.extend([query.create_query_vector() for query in query_dict.values()])
+            query_vectors.extend([query.create_query_vector() for query in query_dict.values() if query.passed_cov_threshold()])
 
+        feature_group_builder = FeatureGroupBuilder(query_vectors)
+        feature_group_builder.print_feature_matrix(model)
             
 
 def model_visualizer(version: str):
@@ -186,5 +189,4 @@ def model_visualizer(version: str):
     print(input_features)
     print(output_class)
 
-model_visualizer("LS")
-model_visualizer("SS")
+main()

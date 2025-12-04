@@ -9,9 +9,11 @@ class Query:
     above_cov_thresh: bool
     top_diamond_alignment: int
     alignments: list[Alignment]
+    name: str
 
     def __init__(self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool):
         self.deeparg_hit = False
+        self.name = row[0]
         new_alignment = Alignment(row, ref_dict)
         if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
             self.above_cov_thresh = True
@@ -59,6 +61,9 @@ class Query:
         
         return (self.top_diamond_alignment == self.top_deeparg_hit)
     
+    def get_query_name(self) -> str :
+        return self.name
+    
     def get_all_alignments_names(self) -> list[str]:
         return [alignment.get_name() for alignment in self.alignments]
     
@@ -93,24 +98,28 @@ class Query:
         """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids of DeepARG hit, respectively"""
         return self.get_top_deeparg_hit().get_domain_identifiers()
     
+    def passed_cov_threshold(self) -> bool :
+        return len(self.alignments) > 0
+    
     def create_query_vector(self) -> "QueryVector":
         return QueryVector(self)
     
 class QueryVector:
     feature_matrix: pd.DataFrame
     deeparg_class: str
+    name: str
     
     def __init__(self, query: Query):
         self.deeparg_class = query.get_top_deeparg_classification(False)
-        names = query.get_all_alignments_names()
+        names = np.array(query.get_all_alignments_names())
         groupings = np.array(query.get_all_alignment_groupings())
-        groupings.dtype.names=["clstr", "arg", "dom", "super", "amr"]
-        index = pd.MultiIndex(levels=[
-            groupings["clstr"], groupings["arg"], groupings["dom"],
-            groupings["super"], groupings["amr"], names], names=[
+        index = pd.MultiIndex.from_arrays(arrays=[
+            groupings[:,0], groupings[:,1], groupings[:,2],
+            groupings[:,3], groupings[:,4], names], names=[
                 "clstr", "arg", "dom", "super", "amr", "names"])
         self.feature_matrix = pd.DataFrame(
             data=query.get_all_alignment_bitscores(), index=index)
+        self.name = query.get_query_name()
         
     def has_multiple_possible_classes(self) -> bool :
         return len(self.feature_matrix.index.get_level_values("amr").drop_duplicates()) > 1
@@ -120,6 +129,19 @@ class QueryVector:
     
     def get_deeparg_class(self) -> str :
         return self.deeparg_class
+    
+    def get_refs_and_matrix_indices(self) -> dict[str, pd.Series] :
+        ref_matrix_indices = dict()
+        matrix_indices = self.feature_matrix.index.to_frame()
+        for row in matrix_indices.iterrows():
+            ref_matrix_indices.update({row[1]["names"]:row[1]})
+        return ref_matrix_indices
+    
+    def get_query_name(self) -> str :
+        return self.name
+
+    def get_feature_matrix(self) -> pd.DataFrame :
+        return self.feature_matrix
         
     def get_reference_names(self) -> set[str] :
         return set(self.feature_matrix.index.get_level_values("names").values)
