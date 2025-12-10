@@ -19,7 +19,7 @@ class Alignment(DomainContainer):
         aligned_domains = list()
         for domain in self.matching_reference.get_domains():
             if (domain.start < self.end) and (domain.end > self.start):
-                aligned_domains.append(domain)            
+                aligned_domains.append(domain)
         return aligned_domains
     
     def get_name(self) -> str:

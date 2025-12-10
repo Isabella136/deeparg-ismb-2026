@@ -30,29 +30,29 @@ class DomainContainer(ABC):
         """Returns clstr, arg, dom, super, and amr, respectively"""
         clstr_id = str(self.get_cluster())
         arg_id = self.get_arg_id()
-        dom_accs = [domain.dom_acc for domain in self.get_domains()]
-        super_accs = [domain.super_acc for domain in self.get_domains()]
-        if len(dom_accs) == 0:
-            dom_accs.append(self.get_arg_id())
-            super_accs.append(self.get_arg_id())
-        dom_id = "$".join(dom_accs)
-        super_id = "$".join(super_accs)
+        dom_id = self.get_domain_ids()
+        super_id = self.get_super_ids()
         amr_class_id = self.get_classification()
         return (clstr_id, arg_id, dom_id, super_id, amr_class_id)
 
-        
+    def get_domain_ids(self) -> str:
+        self_dom_accs = [domain.dom_acc for domain in self.get_domains()]
+        if len(self_dom_accs) == 0:
+            self_dom_accs.append(self.get_arg_id())
+        return "$".join(self_dom_accs)
+    
+    def get_super_ids(self) -> str:
+        self_super_accs = [domain.super_acc for domain in self.get_domains()]
+        if len(self_super_accs) == 0:
+            self_super_accs.append(self.get_arg_id())
+        return "$".join(self_super_accs)
     
     def get_domain_identifiers(self) -> tuple[str, str, str, str] :
         """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids, respectively"""
         clstr_id = "|".join((str(self.get_cluster()), self.get_classification()))
-        self_dom_accs = [domain.dom_acc for domain in self.get_domains()]
-        self_super_accs = [domain.super_acc for domain in self.get_domains()]
-        if len(self_dom_accs) == 0:
-            self_dom_accs.append(self.get_arg_id())
-            self_super_accs.append(self.get_arg_id())
-        arg_id = "|".join(("$".join(self_dom_accs), self.get_arg_id(), self.get_classification()))
-        dom_id = "|".join(("$".join(self_dom_accs), self.get_classification()))
-        super_id = "|".join(("$".join(self_super_accs), self.get_classification()))
+        arg_id = "|".join((self.get_domain_ids(), self.get_arg_id(), self.get_classification()))
+        dom_id = "|".join((self.get_domain_ids(), self.get_classification()))
+        super_id = "|".join((self.get_super_ids(), self.get_classification()))
 
         return (clstr_id, arg_id, dom_id, super_id)
         

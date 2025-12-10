@@ -1,5 +1,6 @@
 from differential_distribution_classes.alignment import Alignment
 from differential_distribution_classes.reference import Reference
+from multiprocessing import shared_memory
 import pandas as pd
 import numpy as np
 
@@ -11,31 +12,37 @@ class Query:
     alignments: list[Alignment]
     name: str
 
-    def __init__(self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool):
+    def __init__(
+            self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool, sample: str):
         self.deeparg_hit = False
-        self.name = row[0]
-        new_alignment = Alignment(row, ref_dict)
-        if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
-            self.above_cov_thresh = True
-            self.alignments = [new_alignment]
-            self.top_diamond_alignment = 0
-        else:
+        self.name = f"{sample}|{row[0]}"
+        if row[1] not in ref_dict:
             self.above_cov_thresh = False
             self.alignments = list()
+        else: 
+            new_alignment = Alignment(row, ref_dict)
+            if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
+                self.above_cov_thresh = True
+                self.alignments = [new_alignment]
+                self.top_diamond_alignment = 0
+            else:
+                self.above_cov_thresh = False
+                self.alignments = list()
         
 
     def add_alignment(self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool):
-        new_alignment = Alignment(row, ref_dict)
-        if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
-            if not self.above_cov_thresh: 
-                self.above_cov_thresh = True
-                self.alignments.append(new_alignment)
-                self.top_diamond_alignment = 0
-            else:
-                self.alignments.append(new_alignment)
-                curr_top_alignment = self.get_top_diamond_alignment()
-                if self.alignments[-1].get_bitscore() > curr_top_alignment.get_bitscore():
-                    self.top_diamond_alignment = len(self.alignments) - 1
+        if row[1] in ref_dict:
+            new_alignment = Alignment(row, ref_dict)
+            if (not ls_model) or (new_alignment.get_coverage() >= 0.8):
+                if not self.above_cov_thresh: 
+                    self.above_cov_thresh = True
+                    self.alignments.append(new_alignment)
+                    self.top_diamond_alignment = 0
+                else:
+                    self.alignments.append(new_alignment)
+                    curr_top_alignment = self.get_top_diamond_alignment()
+                    if self.alignments[-1].get_bitscore() > curr_top_alignment.get_bitscore():
+                        self.top_diamond_alignment = len(self.alignments) - 1
 
     def add_deeparg_hit(self, best_hit: str):
         self.deeparg_hit = True
@@ -63,6 +70,9 @@ class Query:
     
     def get_query_name(self) -> str :
         return self.name
+    
+    def get_all_alignments(self) -> list[Alignment] :
+        return self.alignments
     
     def get_all_alignments_names(self) -> list[str]:
         return [alignment.get_name() for alignment in self.alignments]
@@ -103,6 +113,78 @@ class Query:
     
     def create_query_vector(self) -> "QueryVector":
         return QueryVector(self)
+    
+    def create_query_decision_vector(
+            self, shared_arrays_data: list[tuple]) -> "QueryDecisionVector":
+        return QueryDecisionVector(self, shared_arrays_data)
+    
+class QueryDecisionVector:
+    deeparg_class: str
+    decision_vector: pd.DataFrame
+
+    def __init__(self, query: Query, shared_arrays_data: list[tuple]):
+        # Retrieve shared memory
+        features_memory = shared_memory.SharedMemory(name='features')
+        features = np.ndarray(
+            shape=shared_arrays_data[0][0], dtype=shared_arrays_data[0][1],
+            buffer=features_memory.buf)
+        
+        clstr_array_memory = shared_memory.SharedMemory(name='clstr')
+        clstr_array = np.ndarray(
+            shape=shared_arrays_data[1][0], dtype=shared_arrays_data[1][1],
+            buffer=clstr_array_memory.buf)
+        
+        dom_array_memory = shared_memory.SharedMemory(name='dom')
+        dom_array = np.ndarray(
+            shape=shared_arrays_data[2][0], dtype=shared_arrays_data[2][1],
+            buffer=dom_array_memory.buf)
+        
+        super_array_memory = shared_memory.SharedMemory(name='super')
+        super_array = np.ndarray(
+            shape=shared_arrays_data[3][0], dtype=shared_arrays_data[3][1],
+            buffer=super_array_memory.buf)
+        
+        amr_idx_array_memory = shared_memory.SharedMemory(name='amr')
+        amr_idx_array = np.ndarray(
+            shape=shared_arrays_data[4][0], dtype=shared_arrays_data[4][1],
+            buffer=amr_idx_array_memory.buf)
+
+        self.deeparg_class = query.get_top_deeparg_classification(False)
+        alignments = np.array(query.get_all_alignments())
+        get_ref_name = np.vectorize(lambda a: a.get_name())
+        get_clstr_amr = np.vectorize(lambda a: f"{a.get_cluster()}|{a.get_classification()}")
+        get_dom_amr = np.vectorize(lambda a: f"dom:{a.get_domain_ids()}|{a.get_classification()}")
+        get_super_amr = np.vectorize(lambda a: f"super:{a.get_super_ids()}|{a.get_classification()}")
+        get_bitscore = np.vectorize(lambda a: a.get_bitscore())
+        alignments_matrix = pd.DataFrame(data={
+            'ref'   : get_ref_name(alignments),
+            'clstr' : get_clstr_amr(alignments),
+            'dom'   : get_dom_amr(alignments),
+            'super' : get_super_amr(alignments),
+            'bit'   : get_bitscore(alignments)})
+        cols = np.concat((features, "final class"), axis=None)
+        self.decision_vector = pd.DataFrame(
+            data=np.full(shape=(1,len(cols)), fill_value=0.0), columns=cols)
+        self.decision_vector.at[0,"final class"] = float(np.extract(
+            amr_idx_array[:,0]==self.deeparg_class, amr_idx_array[:,1])[0])
+        for row in alignments_matrix.iterrows():
+            self.decision_vector.at[0,row[1]['ref']] = row[1]['bit']
+            self.decision_vector.at[0,row[1]['clstr']] += (
+                row[1]['bit'] / float(np.extract(clstr_array[:,0]==row[1]['clstr'], clstr_array[:,1])[0]))
+            self.decision_vector.at[0,row[1]['dom']] += (
+                row[1]['bit'] / float(np.extract(dom_array[:,0] == row[1]['dom'][4:], dom_array[:,1])[0]))
+            self.decision_vector.at[0,row[1]['super']] += (
+                row[1]['bit'] / float(np.extract(super_array[:,0] == row[1]['super'][6:], super_array[:,1])[0]))
+        
+        # Close shared memory to avoid leaks
+        amr_idx_array_memory.close()
+        clstr_array_memory.close()
+        super_array_memory.close()
+        dom_array_memory.close()
+        features_memory.close()
+            
+    def get_decision_vector(self) -> pd.DataFrame :
+        return self.decision_vector
     
 class QueryVector:
     feature_matrix: pd.DataFrame
