@@ -20,7 +20,6 @@ dist
 .gitattributes
 setup.cfg
 run_test
-
 deeparg_env
 real_data_test/samples/SAMN*
 real_data_test/orf_blast_analysis/*.tsv
@@ -29,13 +28,14 @@ real_data_test/orf_blast_analysis/protein_ids.txt
 *log*
 test/X*
 test/*difference*.tsv
-CDD_features
+database/CDD_features*
 real_data_test/temp.py
 real_data_test/bacteria_refseq_protein*
 .vscode
 real_data_test/distribution_analysis/target
-real_data_test/database_clustering/db*
-real_data_test/database_clustering/*.csv
+database/database_clustering/db*
+database/database_clustering/*.csv
+database/*.fasta
 real_data_test/distribution_analysis/*.png
 real_data_test/distribution_analysis/*.txt
 real_data_test/distribution_analysis/model_visualization/model_LS.h5
