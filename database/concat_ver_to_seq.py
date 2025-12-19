@@ -2,8 +2,8 @@ from Bio import SeqIO
 from Bio.SeqIO import FastaIO
 from Bio.SeqRecord import SeqRecord
 
-DB_V1 = "v1/features.fasta"
-DB_V2 = "v2/features.fasta"
+DB_V1 = "../data/database/v1/features.fasta"
+DB_V2 = "../data/database/v2/features.fasta"
 OUTPUT_V1 = "v1_features.fasta"
 OUTPUT_V2 = "v2_features.fasta"
 
