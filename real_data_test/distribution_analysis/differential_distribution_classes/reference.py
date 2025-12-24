@@ -2,21 +2,18 @@ from differential_distribution_classes.domain import DomainContainer, Domain
 
 class Reference(DomainContainer):
     def __init__(self, arg):
-        if isinstance(arg, str):
-            self.name = arg
-            self.domains = list()
-        elif isinstance(arg, list):
-            self.name = arg[0].split('>')[-1]
-            self.domains = [Domain(arg)]
-        else:
-            raise RuntimeError("Reference initializer was given the wrong argument")
+        self.name = arg
+        self.domains = list()
 
+    # Add length info when parsing feature fasta file
     def add_length_info(self, length: int):
         self.length = length
 
+    # Add cluster info when parsing 40% database clustering output
     def define_cluster(self, cluster: int):
         self.cluster = cluster
 
+    # Add domain if reference has at least one hit from batch CD search
     def add_domain(self, row):
         self.domains.append(Domain(row))
 

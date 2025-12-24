@@ -1,5 +1,5 @@
-from differential_distribution_classes.graph_items import Vertex
-from differential_distribution_classes.math_util import array_wise_clr_transform, relative_abundance
+from differential_distribution_classes.graph_items import Vertex, Edge
+from differential_distribution_classes.math_util import relative_abundance
 import pandas as pd
 import numpy as np
 
@@ -7,9 +7,18 @@ import numpy as np
 class SubGraph:
     subgraph_index: int
     vertices: dict[str, Vertex]
-    clr_transform_i: np.array
-    clr_transform_a: np.array
-    clr_transform_b: np.array
+    edges: dict[(str, str), Edge]
+    switch_pair_counts: np.array
+    reverse_switch_pair_counts: np.array
+    dia_ref_abundance: np.array
+    dia_a_abundance: np.array
+    dia_b_abundance: np.array
+    dee_ref_abundance: np.array
+    dee_a_abundance: np.array
+    dee_b_abundance: np.array
+    abundance_i: np.array
+    abundance_a: np.array
+    abundance_b: np.array
     relative_i: np.array
     relative_a: np.array
     relative_b: np.array
@@ -18,20 +27,27 @@ class SubGraph:
     def __init__(self, index: int, vertex_entry: tuple[str, Vertex]):
         self.subgraph_index = index
         self.vertices = dict([vertex_entry])
+        self.edges = vertex_entry[1].get_edges()
 
     def add_vertex(self, vertex_entry: tuple[str, Vertex]):
         self.vertices.update([vertex_entry])
+        self.edges.update(vertex_entry[1].get_edges())
 
-    def calc_clr_transform(self):
-        self.clr_transform_i = array_wise_clr_transform(np.array([
-            ver.get_state_i_count() for ver in self.vertices.values()]))
-        self.clr_transform_a = array_wise_clr_transform(np.array([
-            ver.get_state_a_count() for ver in self.vertices.values()]))
-        self.clr_transform_b = array_wise_clr_transform(np.array([
-            ver.get_state_b_count() for ver in self.vertices.values()]))
+    def get_size(self):
+        return len(self.vertices)
+
+    # Those are raw abundance of vertex at each state
+    def calc_abundance(self):
+        self.abundance_i = np.array([
+            ver.get_state_i_count() for ver in self.vertices.values()])
+        self.abundance_a = np.array([
+            ver.get_state_a_count() for ver in self.vertices.values()])
+        self.abundance_b = np.array([
+            ver.get_state_b_count() for ver in self.vertices.values()])
         self.a_to_b_sign = np.sign([
             ver.get_state_b_count() - ver.get_state_a_count() for ver in self.vertices.values()])
-        
+    
+    # Those are abundances of vertex at each state relative to rest of connected subgraph
     def calc_relative_abundance(self):
         self.relative_i = relative_abundance(np.array([
             ver.get_state_i_count() for ver in self.vertices.values()]))
@@ -40,25 +56,61 @@ class SubGraph:
         self.relative_b = relative_abundance(np.array([
             ver.get_state_b_count() for ver in self.vertices.values()]))
         
-    def get_clr_transform(self) -> pd.DataFrame:
+    def get_connected_table(self, sample, identity, model) -> pd.DataFrame:
         return (pd.DataFrame({
-                "subgraph" : np.full(shape=self.clr_transform_i.shape, fill_value=self.subgraph_index),
-                "state I clr" : np.sign(self.clr_transform_i) * np.abs(self.clr_transform_i),
-                "state A clr" : np.sign(self.clr_transform_a) * np.abs(self.clr_transform_a),
-                "state B clr" : np.sign(self.clr_transform_b) * np.abs(self.clr_transform_b), 
-                "state B - state A sign" : self.a_to_b_sign},
-            index=self.vertices.keys()))
-    def get_relative_abundance(self):
-        return(pd.DataFrame({
-            "subgraph" : np.full(shape=self.clr_transform_i.shape, fill_value=self.subgraph_index),
-            "relative abundance I" : self.relative_i,
-            "relative abundance A" : self.relative_a,
-            "relative abundance B" : self.relative_b},
-            index=self.vertices.keys()))
+            "sample" : sample,
+            "alignment identity" : identity,
+            "model" : model,
+            "label" : self.vertices.keys(),
+            "subgraph" : self.subgraph_index,
+            "reference abundance" : np.int_(self.abundance_i),
+            "reference relative abundance" : self.relative_i,
+            "state A abundanc" : np.int_(self.abundance_a),
+            "state A relative abundance" : self.relative_a,
+            "state B abundance" : np.int_(self.abundance_b),
+            "state B relative abundance" : self.relative_b,
+            "a_to_b_sign": np.int_(self.a_to_b_sign),
+            "label is arg": [ver.has_arg_label() for ver in self.vertices.values()]}))
+    
+    # Those are abundance information for each switch pair
+    def calc_pair(self):
+        self.switch_pair_counts = np.array([
+            edge.get_count() for edge in list(self.edges.values())])
+        self.reverse_switch_pair_counts = np.array([
+            0 if (dee, dia) not in self.edges else self.edges[(dee, dia)].get_count()
+            for dia, dee in list(self.edges.keys())])
+        self.dia_ref_abundance = np.array([
+            np.int_(self.vertices[ver[0]].get_state_i_count()) for ver in list(self.edges.keys())])
+        self.dia_a_abundance = np.array([
+            np.int_(self.vertices[ver[0]].get_state_a_count()) for ver in list(self.edges.keys())])
+        self.dia_b_abundance = np.array([
+            np.int_(self.vertices[ver[0]].get_state_b_count()) for ver in list(self.edges.keys())])
+        self.dee_ref_abundance = np.array([
+            np.int_(self.vertices[ver[1]].get_state_i_count()) for ver in list(self.edges.keys())])
+        self.dee_a_abundance = np.array([
+            np.int_(self.vertices[ver[1]].get_state_a_count()) for ver in list(self.edges.keys())])
+        self.dee_b_abundance = np.array([
+            np.int_(self.vertices[ver[1]].get_state_b_count()) for ver in list(self.edges.keys())])
+    
+    def get_pair_table(self, sample, identity, model) -> pd.DataFrame:
+        return (pd.DataFrame({
+            "sample" : sample,
+            "alignment identity" : identity,
+            "model" : model,
+            "diamond best-hit label": [ver[0] for ver in list(self.edges.keys())],
+            "diamond best-hit reference abundance" : self.dia_ref_abundance,
+            "diamond best-hit state a abundance" : self.dia_a_abundance,
+            "diamond best-hit state b abundance" : self.dia_b_abundance,
+            "deeparg hit label": [ver[1] for ver in list(self.edges.keys())],
+            "deeparg hit reference abundance" : self.dee_ref_abundance,
+            "deeparg hit state a abundance" : self.dee_a_abundance,
+            "deeparg hit state b abundance" : self.dee_b_abundance,
+            "switch pair count": self.switch_pair_counts,
+            "reverse switch pair count": self.reverse_switch_pair_counts,
+            "pair contains arg label": [edge.has_arg_label for edge in self.edges.values()]}))
 
 class Graph:
     subgraphs: list[SubGraph]
-
     def __init__(self, all_vertices: dict[str, Vertex]):
         self.subgraphs = list()
         while len(all_vertices) > 0:
@@ -73,13 +125,17 @@ class Graph:
 
                 self.subgraphs[-1].add_vertex(curr_vertex)
                 vertex_queue.extend(curr_vertex[1].get_adjacent_vertices().items())
-            self.subgraphs[-1].calc_clr_transform()
+            self.subgraphs[-1].calc_abundance()
             self.subgraphs[-1].calc_relative_abundance()
+            self.subgraphs[-1].calc_pair()
     
-    def get_connected_clr_transform(self) -> pd.DataFrame :
-        return(pd.concat([subgraph.get_clr_transform() for subgraph in self.subgraphs]))
-    
-    
-    def get_relative_abundance(self) -> pd.DataFrame:
-        return (pd.concat([subgraph.get_relative_abundance() for subgraph in self.subgraphs]))
+    def get_connected_table(self, sample, identity, model) -> pd.DataFrame :
+        return(pd.concat([
+            subgraph.get_connected_table(sample, identity, model) for subgraph in self.subgraphs 
+            if subgraph.get_size() > 1]))
+
+    def get_pair_table(self, sample, identity, model) -> pd.DataFrame :
+        return(pd.concat([
+            subgraph.get_pair_table(sample, identity, model) for subgraph in self.subgraphs 
+            if subgraph.get_size() > 1]))
     

@@ -36,8 +36,10 @@ real_data_test/distribution_analysis/target
 database/database_clustering/db*
 database/database_clustering/*.csv
 database/*.fasta
+database/*.csv
 real_data_test/distribution_analysis/*.png
 real_data_test/distribution_analysis/*.txt
+real_data_test/distribution_analysis/differential_distribution_output
 real_data_test/distribution_analysis/model_visualization/model_LS.h5
 real_data_test/distribution_analysis/model_visualization/*.png
 real_data_test/distribution_analysis/model_visualization/model_SS.h5

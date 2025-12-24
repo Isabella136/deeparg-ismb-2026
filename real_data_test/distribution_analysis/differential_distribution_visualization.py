@@ -1,14 +1,13 @@
-from differential_distribution_classes.graph_items import TrioVertex, ClstrVertex, DomainVertex, SuperVertex
+from differential_distribution_classes.graph_items import ClstrVertex, DomainVertex, SuperVertex, AmrVertex
 from differential_distribution_classes.reference import Reference
 from differential_distribution_classes.graph import Graph
 from differential_distribution_classes.query import Query
-import pandas as pd
-import numpy as np
+import pickle
 import os
 
-CDD_DIR = "../../CDD_features/"
+CDD_DIR = "../../database/CDD_features_v2/"
 REF_LOC = "../../data/database/v2/features.fasta"
-CLSTR_LOC = "../database_clustering/db40.clstr"
+CLSTR_LOC = "../../database/database_clustering/db_v2_40.clstr"
 DEEPARG_HIT_FILE = "X.mapping.ARG"
 ALIGNMENT_FILE = "X.align.daa.tsv"
 SAMPLE_ID_FILE = "../real_samples.txt"
@@ -16,9 +15,10 @@ PATH_TO_SS = "deeparg_results"
 PATH_TO_LS = "spades/deeparg_results"
 
 AMR_SWITCH_DISTRIBUTION = "amr_switch_distribution.txt"
-CLR_LOC = "center_log_ratio_transform"
+OUTPUT_LOC = "differential_distribution_output"
 CLUSTER_OUTPUT = "cluster.tsv"
 TRIO_OUTPUT = "trio.tsv"
+AMR_OUTPUT = "amr.tsv"
 DOMAIN_OUTPUT = "domain.tsv"
 SUPER_OUTPUT = "super.tsv"
 
@@ -38,109 +38,96 @@ def main():
     # Read content of real_samples.txt to find biosample ID
     with open(SAMPLE_ID_FILE, "r") as sample_id_buf:
         sample_id_list = sample_id_buf.read().split('\n')
-    
-    # Get amr class distribution in database
-    database_amr_count: dict[str, int] = dict()
+    first = True
+    for model in ["LS", "SS"]:    
+        # Open metadata to get ARG features and output
+        ref_dict: dict[str, Reference] = dict()
+        metadata_IO_DL = pickle.load(open("../../data/model/v2/metadata_"+model+".pkl", "rb"))
+        for ref in metadata_IO_DL["features"]:
+            ref_dict[ref] = Reference(ref)
 
-    # Look through CD features and intialize Reference object
-    ref_dict: dict[str, Reference] = dict()
-    for part in range(1,26):
-        with open(f"{CDD_DIR}Part{part}_hitdata.txt", "r") as cdd_info_buf:
-            cdd_info_list = cdd_info_buf.read().split('\n')
-        for cdd_info_line in cdd_info_list[1:-1]:
-            row = cdd_info_line.split('\t')
-            name = row[0].split('>')[-1]
-            if (len(ref_dict) > 0) and (name in ref_dict.keys()):
-                ref_dict[name].add_domain(row)
+        # Look through CD features to add domain info
+        for part in range(1,26):
+            with open(f"{CDD_DIR}Part{part}_hitdata.txt", "r") as cdd_info_buf:
+                cdd_info_list = cdd_info_buf.read().split('\n')
+            for cdd_info_line in cdd_info_list[1:-1]:
+                row = cdd_info_line.split('\t')
+                name = row[0].split('>')[-1]
+                if name in ref_dict.keys():
+                    ref_dict[name].add_domain(row)
+            cdd_info_list.clear()
+
+        # Add length information
+        with open(REF_LOC, "r") as ref_buf:
+            ref_list = ref_buf.read().split('\n')
+        for ref_index in range((len(ref_list) - 1) // 2):
+            name = ref_list[ref_index*2][1:]
+            if name not in ref_dict.keys():
+                continue
+            ref_dict[name].add_length_info(len(ref_list[ref_index*2+1]))
+        ref_list.clear()
+
+        # Add cluster information
+        with open(CLSTR_LOC, "r") as clstr_buf:
+            clstr_list = clstr_buf.read().split('\n')
+        cluster = -1
+        for line in clstr_list[:-1]:
+            if '>' == line[0]:
+                cluster += 1
             else:
-                ref_dict[name] = Reference(row)
-                amr = ref_dict[name].get_classification()
-                if amr in database_amr_count.keys():
-                    database_amr_count[amr] += 1
+                name = line.split('>')[-1].split('...')[0][:-3]
+                if name not in ref_dict.keys():
+                    continue
+                ref_dict[name].define_cluster(cluster)
+
+        # Count the time each id appears in reference
+        reference_clstr_id_count: dict[str, int] = dict()
+        reference_dom_id_count: dict[str, int] = dict()
+        reference_super_id_count: dict[str, int] = dict()
+        reference_amr_count: dict[str, int] = dict()
+        for ref in ref_dict.values():
+            ref_ids = ref.get_domain_identifiers()
+            (clstr_id, trio_id, dom_id, super_id) = ref_ids
+            if clstr_id in reference_clstr_id_count.keys():
+                reference_clstr_id_count[clstr_id] += 1
+            else:
+                reference_clstr_id_count[clstr_id] = 1
+            trio_fields = trio_id.split('|')
+            super_fields = super_id.split('|')
+            dom_list = trio_fields[0].split('$')
+            super_list = super_fields[0].split('$')
+            # We may have numerous domains in gene; should count each potential combination as well
+            dom_combo_list = sorted_domains_combo(dom_list)
+            super_combo_list = sorted_domains_combo(super_list)
+            # We also need to count instances of arg as domain
+            if trio_fields[0] != trio_fields[1]:
+                dom_combo_list.append(trio_fields[1])
+                super_combo_list.append(trio_fields[1])
+            for i in range(len(dom_combo_list)):
+                if trio_fields[2] in reference_amr_count.keys():
+                    reference_amr_count[trio_fields[2]] += 1
                 else:
-                    database_amr_count[amr] = 1
-        cdd_info_list.clear()
+                    reference_amr_count[trio_fields[2]] = 1
+                dom_id = "|".join((dom_combo_list[i], trio_fields[2]))
+                if dom_id in reference_dom_id_count.keys():
+                    reference_dom_id_count[dom_id] += 1
+                else:
+                    reference_dom_id_count[dom_id] = 1
+                super_id = "|".join((super_combo_list[i], super_fields[1]))
+                if super_id in reference_super_id_count.keys():
+                    reference_super_id_count[super_id] += 1
+                else:
+                    reference_super_id_count[super_id] = 1
 
-    # Add additional references that don't have domains + save length information
-    with open(REF_LOC, "r") as ref_buf:
-        ref_list = ref_buf.read().split('\n')
-    for ref_index in range((len(ref_list) - 1) // 2):
-        name = ref_list[ref_index*2][1:]
-        if name not in ref_dict.keys():
-            ref_dict[name] = Reference(name)
-            amr = ref_dict[name].get_classification()
-            if amr in database_amr_count.keys():
-                database_amr_count[amr] += 1
-            else:
-                database_amr_count[amr] = 0
-        ref_dict[name].add_length_info(len(ref_list[ref_index*2+1]))
-    ref_list.clear()
-
-    # Add cluster information
-    with open(CLSTR_LOC, "r") as clstr_buf:
-        clstr_list = clstr_buf.read().split('\n')
-    cluster = -1
-    for line in clstr_list[:-1]:
-        if '>' == line[0]:
-            cluster += 1
-        else:
-            name = line.split('>')[-1].split('...')[0]
-            ref_dict[name].define_cluster(cluster)
-
-    # Count the time each id appears in reference
-    reference_clstr_id_count: dict[str, int] = dict()
-    reference_trio_id_count: dict[str, int] = dict()
-    reference_dom_id_count: dict[str, int] = dict()
-    reference_super_id_count: dict[str, int] = dict()
-    for ref in ref_dict.values():
-        ref_ids = ref.get_domain_identifiers()
-        (clstr_id, trio_id, dom_id, super_id) = ref_ids
-        if clstr_id in reference_clstr_id_count.keys():
-            reference_clstr_id_count[clstr_id] += 1
-        else:
-            reference_clstr_id_count[clstr_id] = 1
-
-        trio_fields = trio_id.split('|')
-        super_fields = super_id.split('|')
-        dom_list = trio_fields[0].split('$')
-        super_list = super_fields[0].split('$')
-        # We may have numerous domains in gene; should count each potential combination as well
-        dom_combo_list = sorted_domains_combo(dom_list)
-        super_combo_list = sorted_domains_combo(super_list)
-        # We also need to count instances of arg as domain
-        if trio_fields[0] != trio_fields[1]:
-            dom_combo_list.append(trio_fields[1])
-            super_combo_list.append(trio_fields[1])
-        for i in range(len(dom_combo_list)):
-            trio_id = "|".join((dom_combo_list[i], trio_fields[1], trio_fields[2]))
-            if trio_id in reference_trio_id_count.keys():
-                reference_trio_id_count[trio_id] += 1
-            else:
-                reference_trio_id_count[trio_id] = 1
-            dom_id = "|".join((dom_combo_list[i], trio_fields[2]))
-            if dom_id in reference_dom_id_count.keys():
-                reference_dom_id_count[dom_id] += 1
-            else:
-                reference_dom_id_count[dom_id] = 1
-            super_id = "|".join((super_combo_list[i], super_fields[1]))
-            if super_id in reference_super_id_count.keys():
-                reference_super_id_count[super_id] += 1
-            else:
-                reference_super_id_count[super_id] = 1
+        # Check to see if output directory exist, or make one
+        if not os.path.exists(OUTPUT_LOC):
+            os.mkdir(OUTPUT_LOC)
         
-    # Create list of AMR switch distributions to output later
-    amr_switch_info = list()
-
-    # Check to see if center log ratio transform directory exist, or make one
-    if not os.path.exists(CLR_LOC):
-        os.mkdir(CLR_LOC)
-    
-    # Go through each run one at a time
-    for sample_id in sample_id_list:
-        for identity in [30, 50, 80]:
-            for model in ["LS", "SS"]:
-                # Make vertices for all four ARG categorizing units
-                trio_vertices: dict[str, TrioVertex] = dict()
+        # Go through each run one at a time
+        for sample_id in sample_id_list:
+            for identity in [30, 50, 80]:
+                # Make vertices for all four labels
+                amr_vertices: dict[str, AmrVertex] = dict()
                 clstr_vertices: dict[str, ClstrVertex] = dict()
                 domain_vertices: dict[str, DomainVertex] = dict()
                 super_vertices: dict[str, SuperVertex] = dict()
@@ -156,11 +143,8 @@ def main():
                     if (len(query_dict) > 0) and (row[0] in query_dict.keys()):
                         query_dict[row[0]].add_alignment(row, ref_dict, model == "LS")
                     else:
-                        query_dict[row[0]] = Query(row, ref_dict, model == "LS")
+                        query_dict[row[0]] = Query(row, ref_dict, model == "LS", sample_id)
                 alignment_list.clear()
-
-                # Create dict for amr switches
-                amr_switch_dict: dict[str, int] = dict()
 
                 # Get DeepARG hit information
                 with open("/".join((
@@ -179,220 +163,132 @@ def main():
                     deeparg_amr = query_dict[row[3]].get_top_deeparg_classification()
                     if diamond_amr != deeparg_amr:
                         key = "\t".join((diamond_amr, deeparg_amr))
-                        if key in amr_switch_dict.keys():
-                            amr_switch_dict[key] += 1
-                        else:
-                            amr_switch_dict[key] = 1
                 deeparg_list.clear()
-
-                # Save AMR switch distribution for current run
-                for (dia_to_dee, count) in amr_switch_dict.items():
-                    amr_switch_info.append("\t".join((
-                        sample_id, str(identity), model, dia_to_dee, str(count))))
                 
-                # Create vertices nd edges to represent categories and pairs, respectively
+                # Create vertices and edges to represent labels and pairs, respectively
                 for query in query_dict.values():
                     if query.is_deeparg_hit():
-                        alignment_a_ids = query.get_top_diamond_alignment_domain_identifiers()
-                        (clstr_a, trio_a, dom_a, super_a) = alignment_a_ids
+                        diamond_ids = query.get_top_diamond_alignment_domain_identifiers()
+                        (clstr_dia, trio_dia, dom_dia, super_dia) = diamond_ids
+                        is_alignment_domain_less = len(query.get_top_diamond_alignment().get_domains()) == 0
+                        amr_dia = query.get_top_diamond_classification()
 
-                        if clstr_a not in clstr_vertices.keys():
-                            clstr_vertices[clstr_a] = ClstrVertex(clstr_a, reference_clstr_id_count[clstr_a])
-                        if trio_a not in trio_vertices.keys():
-                            trio_vertices[trio_a] = TrioVertex(trio_a, reference_trio_id_count[trio_a])
-                        if dom_a not in domain_vertices.keys():
-                            domain_vertices[dom_a] = DomainVertex(dom_a, reference_dom_id_count[dom_a])
-                        if super_a not in super_vertices.keys():
-                            super_vertices[super_a] = SuperVertex(super_a, reference_super_id_count[super_a])
+                        if amr_dia not in amr_vertices.keys():
+                            amr_vertices[amr_dia] = AmrVertex(amr_dia, reference_amr_count[amr_dia])
+                        if clstr_dia not in clstr_vertices.keys():
+                            clstr_vertices[clstr_dia] = ClstrVertex(clstr_dia, reference_clstr_id_count[clstr_dia])
+                        if dom_dia not in domain_vertices.keys():
+                            domain_vertices[dom_dia] = DomainVertex(
+                                dom_dia, reference_dom_id_count[dom_dia], is_alignment_domain_less)
+                        if super_dia not in super_vertices.keys():
+                            super_vertices[super_dia] = SuperVertex(
+                                super_dia, reference_super_id_count[super_dia], is_alignment_domain_less)
 
                         if not query.are_diamond_and_deeparg_the_same():
-                            alignment_b_ids = query.get_top_deeparg_hit_domain_identifiers()
-                            (clstr_b, trio_b, dom_b, super_b) = alignment_b_ids
+                            deeparg_ids = query.get_top_deeparg_hit_domain_identifiers()
+                            (clstr_dee, trio_dee, dom_dee, super_dee) = deeparg_ids
+                            is_alignment_domain_less = len(query.get_top_deeparg_hit().get_domains()) == 0
+                            amr_dee = query.get_top_deeparg_classification()
 
-                            if clstr_b not in clstr_vertices.keys():
-                                clstr_vertices[clstr_b] = ClstrVertex(clstr_b, reference_clstr_id_count[clstr_b])
-                            clstr_edge = clstr_vertices[clstr_a].get_edge_from_a(clstr_vertices[clstr_b])
-                            clstr_vertices[clstr_b].add_edge_to_b(clstr_vertices[clstr_a], clstr_edge)
-                        
-                            if trio_b not in trio_vertices.keys():
-                                trio_vertices[trio_b] = TrioVertex(trio_b, reference_trio_id_count[trio_b])
-                            trio_edge = trio_vertices[trio_a].get_edge_from_a(trio_vertices[trio_b])
-                            trio_vertices[trio_b].add_edge_to_b(trio_vertices[trio_a], trio_edge)
+                            if amr_dee not in amr_vertices.keys():
+                                amr_vertices[amr_dee] = AmrVertex(amr_dee, reference_amr_count[amr_dee])
+                            amr_edge = amr_vertices[amr_dia].get_edge_from_a(amr_vertices[amr_dee])
+                            amr_vertices[amr_dee].add_edge_to_b(amr_vertices[amr_dia], amr_edge)
 
-                            if dom_b not in domain_vertices.keys():
-                                domain_vertices[dom_b] = DomainVertex(dom_b, reference_dom_id_count[dom_b])
-                            dom_edge = domain_vertices[dom_a].get_edge_from_a(domain_vertices[dom_b])
-                            domain_vertices[dom_b].add_edge_to_b(domain_vertices[dom_a], dom_edge)
+                            if clstr_dee not in clstr_vertices.keys():
+                                clstr_vertices[clstr_dee] = ClstrVertex(clstr_dee, reference_clstr_id_count[clstr_dee])
+                            clstr_edge = clstr_vertices[clstr_dia].get_edge_from_a(clstr_vertices[clstr_dee])
+                            clstr_vertices[clstr_dee].add_edge_to_b(clstr_vertices[clstr_dia], clstr_edge)
 
-                            if super_b not in super_vertices.keys():
-                                super_vertices[super_b] = SuperVertex(super_b, reference_super_id_count[super_b])
-                            super_edge = super_vertices[super_a].get_edge_from_a(super_vertices[super_b])
-                            super_vertices[super_b].add_edge_to_b(super_vertices[super_a], super_edge)
+                            if dom_dee not in domain_vertices.keys():
+                                domain_vertices[dom_dee] = DomainVertex(
+                                    dom_dee, reference_dom_id_count[dom_dee], is_alignment_domain_less)
+                            dom_edge = domain_vertices[dom_dia].get_edge_from_a(domain_vertices[dom_dee])
+                            domain_vertices[dom_dee].add_edge_to_b(domain_vertices[dom_dia], dom_edge)
+
+                            if super_dee not in super_vertices.keys():
+                                super_vertices[super_dee] = SuperVertex(
+                                    super_dee, reference_super_id_count[super_dee], is_alignment_domain_less)
+                            super_edge = super_vertices[super_dia].get_edge_from_a(super_vertices[super_dee])
+                            super_vertices[super_dee].add_edge_to_b(super_vertices[super_dia], super_edge)
                         
                         else:
-                            clstr_vertices[clstr_a].increment_states_but_not_pair()
-                            trio_vertices[trio_a].increment_states_but_not_pair()
-                            domain_vertices[dom_a].increment_states_but_not_pair()
-                            super_vertices[super_a].increment_states_but_not_pair()
-
-                # Create graphs then build center log ratio transform tables
-                clstr_graph = Graph(clstr_vertices)
-                clstr_connected_clr = clstr_graph.get_connected_clr_transform()
-                clstr_connected_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{CLUSTER_OUTPUT}",
-                    sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
-                clstr_relative_abundance_clr = clstr_graph.get_relative_abundance()
-                clstr_relative_abundance_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{CLUSTER_OUTPUT}",
-                    sep="\t", index_label="cluster|amr", float_format='{:.4f}'.format)
-
-                trio_graph = Graph(trio_vertices)
-                trio_connected_clr = trio_graph.get_connected_clr_transform()
-                trio_connected_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{TRIO_OUTPUT}",
-                    sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
-                trio_relative_abundance_clr = trio_graph.get_relative_abundance()
-                trio_relative_abundance_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{TRIO_OUTPUT}",
-                    sep="\t", index_label="domain|arg|amr", float_format='{:.4f}'.format)
-
-                domain_graph = Graph(domain_vertices)
-                domain_connected_clr = domain_graph.get_connected_clr_transform()
-                domain_connected_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{DOMAIN_OUTPUT}",
-                    sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
-                domain_relative_abundance_clr = domain_graph.get_relative_abundance()
-                domain_relative_abundance_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{DOMAIN_OUTPUT}",
-                    sep="\t", index_label="domain|amr", float_format='{:.4f}'.format)
-
-                super_graph = Graph(super_vertices)
-                super_connected_clr = super_graph.get_connected_clr_transform()
-                super_connected_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_connected_{SUPER_OUTPUT}",
-                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)
-                super_relative_abundance_clr = super_graph.get_relative_abundance()
-                super_relative_abundance_clr.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_relative_abundance_{SUPER_OUTPUT}",
-                    sep="\t", index_label="super|amr", float_format='{:.4f}'.format)
-
-                # And now let's output three mega tables where each combos of cluster and 
-                # trio or domain|amr or super|amr is connected to the appropriate state_i_clr
-                # a_to_b_sign
-                all_combo_tuples: set[tuple[str,str,str,str]] = set()
-                for query in query_dict.values():
-                    if query.is_deeparg_hit():
-                        alignment_a_ids = query.get_top_diamond_alignment_domain_identifiers()
-                        all_combo_tuples.add(alignment_a_ids)
-                        if not query.are_diamond_and_deeparg_the_same():
-                            alignment_b_ids = query.get_top_deeparg_hit_domain_identifiers()
-                            all_combo_tuples.add(alignment_b_ids)
-                all_combo_indices = pd.MultiIndex.from_tuples(all_combo_tuples, names=[
-                    "cluster|amr", "trio", "domain|amr", "super|amr"])
-                all_combo_table = pd.DataFrame(
-                    np.empty(shape=[len(all_combo_tuples), 16]),
-                    index=all_combo_indices, 
-                    columns=[
-                        "cluster|amr state I connected clr", "cluster|amr state A connected clr",
-                        "cluster|amr state B connected clr", "cluster|amr state A to B sign", 
-                        "trio state I connected clr", "trio state A connected clr", 
-                        "trio state B connected clr", "trio state A to B sign",
-                        "domain|amr state I connected clr", "domain|amr state A connected clr",
-                        "domain|amr state B connected clr", "domain|amr state A to B sign", 
-                        "super|amr state I connected clr", "super|amr state A connected clr", 
-                        "super|amr state B connected clr", "super|amr state A to B sign"])
-                
-                all_combo_table["cluster|amr state I connected clr"] = [
-                    clstr_connected_clr.at[x, "state I clr"]
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                all_combo_table["cluster|amr state A connected clr"] = [
-                    clstr_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                all_combo_table["cluster|amr state B connected clr"] = [
-                    clstr_connected_clr.at[x, "state B clr"]
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                all_combo_table["cluster|amr state A to B sign"] = [
-                    clstr_connected_clr.at[x, "state B - state A sign"] 
-                    for x in list(all_combo_indices.get_level_values("cluster|amr").values)]
-                
-                all_combo_table["trio state I connected clr"] = [
-                    trio_connected_clr.at[x, "state I clr"]
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
-                all_combo_table["trio state A connected clr"] = [
-                    trio_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
-                all_combo_table["trio state B connected clr"] = [
-                    trio_connected_clr.at[x, "state B clr"]
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
-                all_combo_table["trio state A to B sign"] = [
-                    trio_connected_clr.at[x, "state B - state A sign"] 
-                    for x in list(all_combo_indices.get_level_values("trio").values)]
-                
-                all_combo_table["domain|amr state I connected clr"] = [
-                    domain_connected_clr.at[x, "state I clr"]
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                all_combo_table["domain|amr state A connected clr"] = [
-                    domain_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                all_combo_table["domain|amr state B connected clr"] = [
-                    domain_connected_clr.at[x, "state B clr"]
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                all_combo_table["domain|amr state A to B sign"] = [
-                    domain_connected_clr.at[x, "state B - state A sign"] 
-                    for x in list(all_combo_indices.get_level_values("domain|amr").values)]
-                
-                all_combo_table["super|amr state I connected clr"] = [
-                    super_connected_clr.at[x, "state I clr"]
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                all_combo_table["super|amr state A connected clr"] = [
-                    super_connected_clr.at[x, "state A clr"]
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                all_combo_table["super|amr state B connected clr"] = [
-                    super_connected_clr.at[x, "state B clr"]
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                all_combo_table["super|amr state A to B sign"] = [
-                    super_connected_clr.at[x, "state B - state A sign"] 
-                    for x in list(all_combo_indices.get_level_values("super|amr").values)]
-                
-                trio_combo_table = all_combo_table.droplevel(["domain|amr","super|amr"])
-                domain_combo_table = all_combo_table[[
-                    "cluster|amr state I connected clr", "cluster|amr state A connected clr",
-                    "cluster|amr state A connected clr", "cluster|amr state A to B sign", 
-                    "domain|amr state I connected clr", "domain|amr state A connected clr", 
-                    "domain|amr state B connected clr", "domain|amr state A to B sign", 
-                    "super|amr state I connected clr", "super|amr state A connected clr", 
-                    "super|amr state B connected clr", "super|amr state A to B sign"]]
-                domain_combo_table = domain_combo_table.droplevel(["trio","super|amr"])
-                domain_combo_table = domain_combo_table.loc[
-                    ~domain_combo_table.index.duplicated(keep='first'), :]
-                super_combo_table = all_combo_table[[
-                    "cluster|amr state I connected clr", "cluster|amr state A connected clr",
-                    "cluster|amr state B connected clr", "cluster|amr state A to B sign", 
-                    "super|amr state I connected clr", "super|amr state A connected clr", 
-                    "super|amr state B connected clr", "super|amr state A to B sign"]]
-                super_combo_table = super_combo_table.droplevel(["trio","domain|amr"])
-                super_combo_table = super_combo_table.loc[
-                    ~super_combo_table.index.duplicated(keep='first'), :]
-                
-                trio_combo_table.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_combo_cluster_{TRIO_OUTPUT}",
-                    sep="\t", float_format='{:.4f}'.format)
-                domain_combo_table.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_combo_cluster_{DOMAIN_OUTPUT}",
-                    sep="\t", float_format='{:.4f}'.format)
-                super_combo_table.to_csv(
-                    path_or_buf=f"{CLR_LOC}/{sample_id}_{identity}_{model}_combo_cluster_{SUPER_OUTPUT}",
-                    sep="\t", float_format='{:.4f}'.format)
+                            amr_vertices[amr_dia].increment_states_but_not_pair()
+                            clstr_vertices[clstr_dia].increment_states_but_not_pair()
+                            domain_vertices[dom_dia].increment_states_but_not_pair()
+                            super_vertices[super_dia].increment_states_but_not_pair()
 
 
-    # Output AMR switch distribution information
-    with open(AMR_SWITCH_DISTRIBUTION, "w") as amr_switch_buf:
-        amr_switch_buf.write("AMR classification\tCount\n")
-        for (amr_class, count) in database_amr_count.items():
-            amr_switch_buf.write(f"{amr_class}\t{count}\n")
-        amr_switch_buf.write(
-            "Sample\tAlignment Identity\tModel\tDiamond AMR\tDeepARG AMR\tCount\n")
-        for row in amr_switch_info:
-            amr_switch_buf.write(f"{row}\n")
+                # Create graphs then build switch pair and connected subgraph differential distribution tables
+                amr_graph = Graph(amr_vertices)
+                try:
+                    # We only need switch pair differential distribution table for amr
+                    amr_pair_abundance = amr_graph.get_pair_table(sample_id, identity, model)
+                    if first:
+                        amr_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{AMR_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, index=False)
+                    else:
+                        amr_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{AMR_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+
+                    clstr_graph = Graph(clstr_vertices)
+                    clstr_connected_abundance = clstr_graph.get_connected_table(sample_id, identity, model)
+                    clstr_pair_abundance = clstr_graph.get_pair_table(sample_id, identity, model)
+                    if first:
+                        clstr_connected_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{CLUSTER_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, index=False)
+                        clstr_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{CLUSTER_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, index=False)
+                    else:
+                        clstr_connected_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{CLUSTER_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                        clstr_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{CLUSTER_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+
+                    domain_graph = Graph(domain_vertices)
+                    domain_connected_abundance = domain_graph.get_connected_table(sample_id, identity, model)
+                    domain_pair_abundance = domain_graph.get_pair_table(sample_id, identity, model)
+                    if first:
+                        domain_connected_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{DOMAIN_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, index=False)
+                        domain_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{DOMAIN_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, index=False)
+                    else:
+                        domain_connected_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{DOMAIN_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                        domain_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{DOMAIN_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+
+                    super_graph = Graph(super_vertices)
+                    super_connected_abundance = super_graph.get_connected_table(sample_id, identity, model)
+                    super_pair_abundance = super_graph.get_pair_table(sample_id, identity, model)
+                    if first:
+                        super_connected_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{SUPER_OUTPUT}",
+                            sep="\t",  float_format='{:.4f}'.format, index=False)
+                        super_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{SUPER_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, index=False)
+                    else:
+                        super_connected_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{SUPER_OUTPUT}",
+                            sep="\t",  float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                        super_pair_abundance.to_csv(
+                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{SUPER_OUTPUT}",
+                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                    
+                    first = False
+                except:
+                    continue
 
 main()

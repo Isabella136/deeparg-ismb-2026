@@ -419,21 +419,17 @@ v2_feature_df["corresponding v1-only cluster(s) index/indices"] = v2_feature_df.
         v1_feature_df["v1-v2 cluster index"] == x["v1-v2 cluster index"]
     ]["v1-only cluster index"].drop_duplicates().to_list()), axis=1)
 
-# Perform a quality check
-v1_feature_df.to_csv("v1_feature_data_qc.csv")
-v2_feature_df.to_csv("v2_feature_data_qc.csv")
-
 # Now, "corresponding v2-only cluster(s) size(s)" is undefined in the v1 feature dataframe
 # And "corresponding v1-only cluster(s) size(s)" is undefined in the v2 feature dataframe
 # Can retrieve size from v1_cluster_sizes and v2_cluster_sizes
 print("Get corresponding cluster size")
 v1_feature_df["corresponding v2-only cluster(s) size(s)"] = v1_feature_df.apply(
     lambda x: '$'.join(
-        str(v2_cluster_sizes[int(idx)]) for idx 
+        str(v2_cluster_sizes.get(int("-1" if idx == "" else idx), 0)) for idx 
         in x["corresponding v2-only cluster(s) index/indices"].split('$')), axis=1)
 v2_feature_df["corresponding v1-only cluster(s) size(s)"] = v2_feature_df.apply(
     lambda x: '$'.join(
-        str(v1_cluster_sizes[int(idx)]) for idx 
+        str(v1_cluster_sizes.get(int("-1" if idx == "" else idx), 0)) for idx 
         in x["corresponding v1-only cluster(s) index/indices"].split('$')), axis=1)
 
 # Now, "corresponding v2-only cluster(s)|amr counts(s)" is undefined in the v1 feature dataframe

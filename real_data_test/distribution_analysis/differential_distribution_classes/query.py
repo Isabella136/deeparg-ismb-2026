@@ -16,6 +16,7 @@ class Query:
             self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool, sample: str):
         self.deeparg_hit = False
         self.name = f"{sample}|{row[0]}"
+        # When using SS model, not all 12279 features are used; should skip alignments to those
         if row[1] not in ref_dict:
             self.above_cov_thresh = False
             self.alignments = list()
@@ -25,11 +26,12 @@ class Query:
                 self.above_cov_thresh = True
                 self.alignments = [new_alignment]
                 self.top_diamond_alignment = 0
+            # When using LS model, alignments with less than 80% coverage are thrown out
             else:
                 self.above_cov_thresh = False
                 self.alignments = list()
         
-
+    # If applicable, add alignment to query object
     def add_alignment(self, row: list[str], ref_dict: dict[str, Reference], ls_model: bool):
         if row[1] in ref_dict:
             new_alignment = Alignment(row, ref_dict)
@@ -44,6 +46,7 @@ class Query:
                     if self.alignments[-1].get_bitscore() > curr_top_alignment.get_bitscore():
                         self.top_diamond_alignment = len(self.alignments) - 1
 
+    # Point out the DeepARG hit
     def add_deeparg_hit(self, best_hit: str):
         self.deeparg_hit = True
         for index, alignment in enumerate(self.alignments):
@@ -155,12 +158,14 @@ class QueryDecisionVector:
         get_clstr_amr = np.vectorize(lambda a: f"{a.get_cluster()}|{a.get_classification()}")
         get_dom_amr = np.vectorize(lambda a: f"dom:{a.get_domain_ids()}|{a.get_classification()}")
         get_super_amr = np.vectorize(lambda a: f"super:{a.get_super_ids()}|{a.get_classification()}")
+        get_amr = np.vectorize(lambda a: a.get_classification())
         get_bitscore = np.vectorize(lambda a: a.get_bitscore())
         alignments_matrix = pd.DataFrame(data={
             'ref'   : get_ref_name(alignments),
             'clstr' : get_clstr_amr(alignments),
             'dom'   : get_dom_amr(alignments),
             'super' : get_super_amr(alignments),
+            'amr'   : get_amr(alignments),
             'bit'   : get_bitscore(alignments)})
         cols = np.concat((features, "final class"), axis=None)
         self.decision_vector = pd.DataFrame(
