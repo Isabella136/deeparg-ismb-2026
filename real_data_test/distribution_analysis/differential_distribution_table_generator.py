@@ -103,11 +103,11 @@ def main():
             if trio_fields[0] != trio_fields[1]:
                 dom_combo_list.append(trio_fields[1])
                 super_combo_list.append(trio_fields[1])
+            if trio_fields[2] in reference_amr_count.keys():
+                reference_amr_count[trio_fields[2]] += 1
+            else:
+                reference_amr_count[trio_fields[2]] = 1
             for i in range(len(dom_combo_list)):
-                if trio_fields[2] in reference_amr_count.keys():
-                    reference_amr_count[trio_fields[2]] += 1
-                else:
-                    reference_amr_count[trio_fields[2]] = 1
                 dom_id = "|".join((dom_combo_list[i], trio_fields[2]))
                 if dom_id in reference_dom_id_count.keys():
                     reference_dom_id_count[dom_id] += 1
