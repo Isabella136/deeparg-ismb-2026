@@ -1,4 +1,5 @@
-from matplotlib import axes
+import matplotlib
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -93,21 +94,22 @@ arg_class_count_df = (
 
 # Create a grid to show label distributions in database
 cb_palette = sn.color_palette("colorblind")
-grid = sn.JointGrid()
-grid.figure.set_figwidth(40)
-grid.figure.set_figheight(15)
+plt.figure(figsize=(40, 20))
+joint = plt.axes((0.035,0.1,0.9,0.55))
+y_grid = plt.axes((0.945,0.1,0.05,0.55), sharey=joint)
+x_grid = plt.axes((0.035,0.7,0.9,0.26), sharex=joint)
 
-# For the main joint axes, make a strip plot of arg and domain size distribution per class
+# For the main joint axes, make scatter and violin plot of arg and domain size distribution per class
 # This means that we need to combine arg_class_count and combo_domain_class_count
 # s.t. we know which label is arg and which is domain:
 arg_class_count_df.insert(
     loc=0,
     column="label",
-    value="arg")
+    value="arg|amr")
 combo_domain_class_count_df.insert(
     loc=0,
     column="label",
-    value="domain")
+    value="domain|amr")
 sorted_class = (class_count_df
     .sort_values(
         by="amr class v2 count", 
@@ -121,96 +123,164 @@ label_distr_df = pd.DataFrame(
     columns=["label", "amr class", "count"]).sort_values(
         by="amr class",
         key=sort_class_by_size)
-sn.stripplot(
+
+sn.violinplot(
     data=label_distr_df,
     x="amr class",
     y="count",
     hue="label",
-    ax=grid.ax_joint,
-    size=10.0,
-    dodge=True,
-    alpha=.3,
+    ax=joint,
+    fill=False,
+    density_norm="count",
+    common_norm=False,
+    linewidth=3,
+    cut=0,
+    gap=.1,
+    inner=None,
+    legend=False,
     palette=cb_palette[:2],
     log_scale=10)
-legend_handles = grid.ax_joint.get_legend_handles_labels()[0]
-for handle in legend_handles:
-    handle.set_alpha(1)
-grid.ax_joint.legend(
-    handles=legend_handles,
-    labels=["arg|amr", "domain|amr"],
-    fontsize=20)
-grid.ax_joint.set_xticks(
-    ticks=grid.ax_joint.get_xticks(), 
-    labels=grid.ax_joint.get_xticklabels(), 
-    fontsize=20, 
+joint.scatter(
+    x=(label_distr_df
+        .sort_values(by=["label", "amr class", "count"])
+        .drop_duplicates()
+        .apply(lambda x: (
+            sort_class_by_size(x["amr class"]) + (0.2 if x["label"] == "domain|amr" else -0.2)), 
+            axis=1)),
+    y=(label_distr_df
+        .sort_values(by=["label", "amr class", "count"])
+        .drop_duplicates()["count"]),
+    s=(label_distr_df
+       .value_counts(sort=False)
+       .to_frame()
+       .reset_index(names=["label", "amr class", "label count"])
+       .apply(lambda x: (
+            x["count"] / combo_domain_class_count_df.shape[0] if x["label"] == "domain|amr"
+            else x["count"] / arg_class_count_df.shape[0]), axis=1)
+       .to_numpy()*5000),
+    c=(label_distr_df
+        .sort_values(by=["label", "amr class", "count"])
+        .drop_duplicates()["label"]
+        .apply(lambda x: cb_palette[0] if x=="arg|amr" else cb_palette[1])))
+joint.set_xticks(
+    ticks=joint.get_xticks(), 
+    labels=joint.get_xticklabels(), 
+    fontsize=25, 
     rotation_mode="anchor", 
     rotation=45,
     ha='right',
     va='center')
-grid.ax_joint.set_yticks(
-    ticks=grid.ax_joint.get_yticks(),
-    labels=grid.ax_joint.get_yticklabels(),
-    fontsize=20,
+joint.set_yticks(
+    ticks=joint.get_yticks(),
+    labels=joint.get_yticklabels(),
+    fontsize=25,
     va='center')
-grid.ax_joint.set_ylim(bottom=1, top=1000)
-grid.ax_joint.set_xlabel(
+joint.set_ylim(bottom=1, top=1000)
+joint.set_xlabel(
     xlabel="AMR Class",
-    fontsize=30,
+    fontsize=35,
+    loc='center',
+    labelpad=0)
+joint.set_ylabel(
+    ylabel="Label Abundance (log)",
+    fontsize=35,
     loc='center')
-grid.ax_joint.set_ylabel(
-    ylabel="Label Count (log)",
-    fontsize=30,
-    loc='center')
+joint.legend(
+    handles=[
+        matplotlib.lines.Line2D(
+            [0], [0], color="w", marker='o', label='10% of unique arg|amr counts', 
+            markerfacecolor=cb_palette[0], markersize=np.sqrt(500.0)),
+        matplotlib.lines.Line2D(
+            [0], [0], color="w", marker='o', label='10% of unique domain|amr counts', 
+            markerfacecolor=cb_palette[1], markersize=np.sqrt(500.0)),
+        matplotlib.lines.Line2D(
+            [0], [0], color="w", marker='o', label='1% of unique arg|amr counts', 
+            markerfacecolor=cb_palette[0], markersize=np.sqrt(50.0)),
+        matplotlib.lines.Line2D(
+            [0], [0], color="w", marker='o', label='1% of unique domain|amr counts', 
+            markerfacecolor=cb_palette[1], markersize=np.sqrt(50.0))],
+    fontsize=25,
+    title_fontsize=25)
+joint.set_title(
+    "B",
+    loc="left",
+    fontsize=35)
 
-# For the y marginal axes, make a histogram for domain|amr and arg|amr
-sn.histplot(
+# For the y marginal axes, make a kdeplot for domain|amr and arg|amr
+sn.kdeplot(
     data=label_distr_df,
     y="count",
     hue="label",
-    ax=grid.ax_marg_y,
+    ax=y_grid,
     legend=False,
-    alpha=0.5,
-    stat="density",
     common_norm=False,
-    palette=cb_palette[:2])
+    palette=cb_palette[:2],
+    linewidth=3)
+y_grid.set_xlabel(
+    xlabel="")
+y_grid.set_ylabel(
+    ylabel="")
+y_grid.tick_params(
+    axis='x', 
+    labelbottom=False)
+y_grid.tick_params(
+    axis='y', 
+    labelleft=False)
+y_grid.set_title(
+    "C",
+    loc="left",
+    fontsize=35)
 
-# For the x marginal axes, make a histogram for domain per amr and arg per amr
+# For the x marginal axes, make a histogram for amr, domain per amr and arg per amr
+# This means modifying label_distr_df to add amr label
+modified_label_distr_df = (feature
+    .reset_index(drop=True)[["amr class", "amr class v2 count"]]
+    .sort_values(by="amr class v2 count", ascending=False)
+    .reset_index(drop=True)[["amr class"]])
+modified_label_distr_df.insert(
+    loc=0,
+    column="label",
+    value="amr")
+modified_label_distr_df = pd.concat(
+    [label_distr_df, modified_label_distr_df])
+
 sn.histplot(
-    data=label_distr_df,
+    data=modified_label_distr_df,
     x="amr class",
     hue="label",
-    ax=grid.ax_marg_x,
-    legend=False,
-    alpha=0.5,
-    stat="density",
+    ax=x_grid,
+    legend=True,
+    fill=False,
+    linewidth=3,
+    element="step",
+    stat="proportion",
     common_norm=False,
-    multiple="dodge",
-    shrink=.8,
-    palette=cb_palette[:2])
-grid.ax_marg_x.set_yticks(
-    ticks=grid.ax_marg_x.get_yticks(),
-    labels=[])
-grid.ax_marg_x.tick_params(
-    axis='y',
-    length=0)
+    multiple="layer",
+    palette=cb_palette[:3])
+x_grid.set_yticks(
+    ticks=x_grid.get_yticks(),
+    labels=["", "", "", "", x_grid.get_yticklabels()[4], "", "", "", x_grid.get_yticklabels()[-1]],
+    fontsize=25)
+x_grid.set_ylabel(
+    ylabel="Proportion",
+    fontsize=35)
+x_grid.tick_params(
+    axis='x', 
+    labelbottom=False)
+x_grid.set_xlabel(
+    xlabel="")
+x_grid.legend(
+    handles=x_grid.legend_.legend_handles,
+    labels=["arg|amr", "domain|amr", "feature"],
+    fontsize=25)
+x_grid.set_title(
+    "A",
+    loc="left",
+    fontsize=35)
 
-# Additionally, add cumulative ecdf plot for amr in x marginal axes
-# This means twining the axes
-ecdf_ax = grid.ax_marg_x.twinx()
-ecdf_ax.set_axis_off()
-sn.ecdfplot(
-    x=(feature
-        .reset_index(drop=True)[["amr class", "amr class v2 count"]]
-        .sort_values(by="amr class v2 count", ascending=False)
-        .reset_index(drop=True)["amr class"]), 
-    complementary=True, 
-    ax=ecdf_ax,
-    color=cb_palette[2],
-    linewidth=2,
-    legend=True
-)
+joint.margins(x=0)
 
-grid.savefig("db_distr.png")
+plt.savefig("db_distr.png")
 
 sys.exit()
 
