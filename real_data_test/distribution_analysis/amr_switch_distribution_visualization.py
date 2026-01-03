@@ -1,26 +1,12 @@
-import matplotlib.axes
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
+import matplotlib as plt
 import seaborn as sn
 import pandas as pd
 import numpy as np
 from io import StringIO
 from matplotlib.colors import LinearSegmentedColormap
-import matplotlib
-import sys
 
-TABLE_LOCATION = "differential_distribution_output"
-FEATURE_DATA = "../../database/v2_feature_data.csv"
-HIT_COUNT = "../samples/deeparg_hit_count.tsv"
-
-matplotlib.rcParams["mathtext.fontset"] = "dejavusans"
-matplotlib.rcParams["font.family"] = "DejaVu Sans"
-
-def get_hit_count(diff_count: pd.DataFrame, x: pd.Series) -> int:
-    try:
-        return diff_count.loc[(x["sample id"], x["alignment identity"], x["model"]), "switch pair count"]
-    except:
-        return 0
+plt.rcParams["mathtext.fontset"] = "dejavusans"
+plt.rcParams["font.family"] = "DejaVu Sans"
 
 abbrev_file = open("amr_abbrev.csv", "r")
 amr_abbrev = dict()
@@ -29,96 +15,27 @@ for line in abbrev_file.readlines():
     amr_abbrev.update({row[0]: row[1]})
 abbrev_file.close()
 
-# Get class count for DeepARG database by retrieving feature data
-feature = pd.read_csv(FEATURE_DATA, header=0)
-class_count_df = feature.drop_duplicates(subset=["amr class", "amr class v2 count"])
-class_count_dict = dict(zip(class_count_df["amr class"], class_count_df["amr class v2 count"]))
 
-df = pd.read_csv(f"{TABLE_LOCATION}/switch_pair_abundance_amr.tsv", sep='\t', header=0)
-diff_count = df[[
-    "sample", "alignment identity", "model", "diamond best-hit label",
-    "deeparg hit label", "switch pair count"]].drop_duplicates()
-diff_count = diff_count.groupby(by=["sample", "alignment identity", "model"])[["switch pair count"]].sum()
+distribution_file = open("amr_switch_distribution.txt", "r")
 
-hit_count_df = pd.read_csv(HIT_COUNT, sep="\t", header=0, index_col=0)
-hit_count_df.insert(4, "diff count", 0)
-hit_count_df["diff count"] = hit_count_df.apply(
-    lambda x: get_hit_count(diff_count, x), axis=1
-)
-hit_count_df = hit_count_df.sort_values(by=["model", "sample id", "alignment identity"])
-hit_count_df.insert(5, "hit percentage", 0)
-hit_count_df["hit percentage"] = hit_count_df.apply(
-    lambda x: float(x["hit count"]) / float(hit_count_df.loc[
-        (hit_count_df["sample id"] == x["sample id"]) & 
-        (hit_count_df["alignment identity"] == 30) & 
-        (hit_count_df["model"] == x["model"])].iat[0, 3]), axis=1)
-hit_count_df.insert(6, "diff percentage", 0)
-hit_count_df["diff percentage"] = hit_count_df.apply(
-    lambda x: float(x["diff count"]) / float(hit_count_df.loc[
-        (hit_count_df["sample id"] == x["sample id"]) & 
-        (hit_count_df["alignment identity"] == 30) & 
-        (hit_count_df["model"] == x["model"])].iat[0, 3]), axis=1)
+# Get class count for DeepARG database, located in first 33 lines of input
+class_count = dict()
+for line_num in range(33):
+    line = distribution_file.readline()
+    if line_num == 0 :
+        continue;
+    amr_class = amr_abbrev[line.split("\t")[0]]
+    count = int(line.split("\t")[1])
+    class_count.update({amr_class:count})
 
-cb_palette = sn.color_palette("colorblind")
-plt.figure(figsize=(40, 12))
-axes: list[matplotlib.axes.Axes] = [plt.axes((0.05,0.12,0.46,0.76)), plt.axes((0.53,0.12,0.46,0.76))]
-
-for model, ax in zip(["LS", "SS"], axes):
-
-    filtered_hit_count_df = hit_count_df.loc[hit_count_df["model"] == model]
-
-    same = sn.barplot(
-        x=range(39),
-        y=np.insert(
-            arr=filtered_hit_count_df["hit percentage"].values,
-            obj=slice(3,30,3),
-            values=np.full(9, 0)), 
-        color=cb_palette[0],
-        ax=ax)
-    different = sn.barplot(
-        x=range(39),
-        y=np.insert(
-            arr=filtered_hit_count_df["diff percentage"].values,
-            obj=slice(3,30,3),
-            values=np.full(9, 0)), 
-        color=cb_palette[1],
-        ax=ax)
-
-    if model == "SS":
-        top_bar = mpatches.Patch(color=cb_palette[0], label='same')
-        bottom_bar = mpatches.Patch(color=cb_palette[1], label='different')
-        ax.legend(handles=[top_bar, bottom_bar], fontsize=24)
-    ax.set_xticks(
-        ticks=list(range(39)), 
-        labels=np.insert(
-            arr=filtered_hit_count_df["alignment identity"].values.astype('<U2'),
-            obj=slice(3,30,3),
-            values=np.full(9, "")),
-        rotation_mode="anchor", ha='center', fontsize=24)
-    for loc, sample in enumerate(filtered_hit_count_df["sample id"].drop_duplicates().values):
-        print(sample)
-        ax.text(
-            loc*4+1, -0.075, f"#{loc+1}", ha="center", va="center", fontsize=28)
-    ax.set_ylim(top=1.0)
-    if model == "LS":
-        ax.set_yticks(
-            ticks=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1], 
-            labels=list(range(0, 110, 10)), fontsize=24)
-        ax.set_ylabel(f"Percentage of total DeepARG 30% hits", fontsize=30)
-    else:
-        ax.set_yticks(ticks=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1], labels="")
-    ax.grid(visible=True, which="major", axis='y', color="0.75")
-    ax.tick_params(length=0, pad=8)
-    ax.set_title(f"DeepARG-{model} Similarity to Diamond Best Hit", fontsize=36, loc="left")
-
-plt.gcf().text(0.52, 0.015, "Run (upper value is alignment identity, lower value is sample)", ha="center", fontsize=30)
-plt.savefig("barplot.png")
-sys.exit()
+# Read rest of data into DataFrame
+df: pd.DataFrame = pd.read_csv(StringIO(distribution_file.read()), sep='\t', header=0)
+distribution_file.close()
 
 # Rename AMR columns based on abbrev
 for row in range(df.shape[0]):
-    df.at[row, "diamond best-hit label"] = amr_abbrev[df.at[row, "diamond best-hit label"]]
-    df.at[row, "deeparg hit label"] = amr_abbrev[df.at[row, "deeparg hit label"]]
+    df.at[row, "Diamond AMR"] = amr_abbrev[df.at[row, "Diamond AMR"]]
+    df.at[row, "DeepARG AMR"] = amr_abbrev[df.at[row, "DeepARG AMR"]]
 
 # Create first figure where we group by Diamond AMR, then second figure where we group by DeepARG AMR
 for (group, indiv) in [("Diamond AMR", "DeepARG AMR"), ("DeepARG AMR", "Diamond AMR")]:
@@ -167,7 +84,7 @@ for (group, indiv) in [("Diamond AMR", "DeepARG AMR"), ("DeepARG AMR", "Diamond 
 
         heatmap_df.at[(model, ident, sampl), (group_curr, indiv_curr)] = np.log(
             (1 + row[1]["Count"])/(
-                1 + (class_count_dict[deepa] / (sum(class_count_dict.values()) - class_count_dict[diamo]) * sum(
+                1 + (class_count[deepa] / (sum(class_count.values()) - class_count[diamo]) * sum(
                     df.loc[df["Model"] == model].loc[df["Alignment Identity"] == ident].loc[df["Sample"] == sampl].loc[df["Diamond AMR"] == diamo]["Count"].values))))
         mask_df.at[(model, ident, sampl), (group_curr, indiv_curr)] = False
         max_val = max(max_val, heatmap_df.at[(model, ident, sampl), (group_curr, indiv_curr)])
