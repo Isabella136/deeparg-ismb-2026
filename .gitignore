@@ -44,6 +44,7 @@ real_data_test/distribution_analysis/model_visualization/model_LS.h5
 real_data_test/distribution_analysis/model_visualization/*.png
 real_data_test/distribution_analysis/model_visualization/model_SS.h5
 real_data_test/distribution_analysis/model_visualization/*.csv
+real_data_test/distribution_analysis/OLD
 real_data_test/samples/deeparg_hit_count.tsv
 database/test.html
 database/db_distr.png
