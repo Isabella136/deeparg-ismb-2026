@@ -1,8 +1,11 @@
-from differential_distribution_classes.graph_items import ClstrVertex, DomainVertex, SuperVertex, AmrVertex
+from differential_distribution_classes.graph_items import ClstrVertex, DomainVertex, SuperVertex, AmrVertex, ArgVertex, MultiVertex
 from differential_distribution_classes.reference import Reference
 from differential_distribution_classes.graph import Graph
 from differential_distribution_classes.query import Query
+import pandas as pd
+import numpy as np
 import pickle
+import sys
 import os
 
 CDD_DIR = "../../database/CDD_features_v2/"
@@ -17,10 +20,12 @@ PATH_TO_LS = "spades/deeparg_results"
 AMR_SWITCH_DISTRIBUTION = "amr_switch_distribution.txt"
 OUTPUT_LOC = "differential_distribution_output"
 CLUSTER_OUTPUT = "cluster.tsv"
-TRIO_OUTPUT = "trio.tsv"
+ARG_OUTPUT = "arg.tsv"
 AMR_OUTPUT = "amr.tsv"
 DOMAIN_OUTPUT = "domain.tsv"
 SUPER_OUTPUT = "super.tsv"
+
+GRAPH = False
 
 # Domains are sorted by bitscore
 def sorted_domains_combo(dom_list: list[str]) -> list[str]:
@@ -80,44 +85,59 @@ def main():
                     continue
                 ref_dict[name].define_cluster(cluster)
 
-        # Count the time each id appears in reference
-        reference_clstr_id_count: dict[str, int] = dict()
-        reference_dom_id_count: dict[str, int] = dict()
-        reference_super_id_count: dict[str, int] = dict()
+        # Count the time each label appears in reference
+        reference_clstr_amr_count: dict[str, int] = dict()
+        reference_arg_amr_count: dict[str, int] = dict()
+        reference_dom_amr_count: dict[str, int] = dict()
+        reference_super_amr_count: dict[str, int] = dict()
         reference_amr_count: dict[str, int] = dict()
+        reference_all_groups_count: dict[str, int] = dict()
         for ref in ref_dict.values():
-            ref_ids = ref.get_domain_identifiers()
-            (clstr_id, trio_id, dom_id, super_id) = ref_ids
-            if clstr_id in reference_clstr_id_count.keys():
-                reference_clstr_id_count[clstr_id] += 1
+            (clstr, arg, dom, super, amr) = ref.get_groupings()
+
+            # Count amr, clstr|amr, and arg|amr
+            clstr_amr = '|'.join([clstr, amr])
+            arg_amr = '|'.join([arg, amr])
+            if amr in reference_amr_count.keys():
+                reference_amr_count[amr] += 1
             else:
-                reference_clstr_id_count[clstr_id] = 1
-            trio_fields = trio_id.split('|')
-            super_fields = super_id.split('|')
-            dom_list = trio_fields[0].split('$')
-            super_list = super_fields[0].split('$')
+                reference_amr_count[amr] = 1
+            if clstr_amr in reference_clstr_amr_count.keys():
+                reference_clstr_amr_count[clstr_amr] += 1
+            else:
+                reference_clstr_amr_count[clstr_amr] = 1
+            if arg_amr in reference_arg_amr_count.keys():
+                reference_arg_amr_count[arg_amr] += 1
+            else:
+                reference_arg_amr_count[arg_amr] = 1
+
             # We may have numerous domains in gene; should count each potential combination as well
-            dom_combo_list = sorted_domains_combo(dom_list)
-            super_combo_list = sorted_domains_combo(super_list)
+            dom_combo_list = sorted_domains_combo(dom.split('$'))
+            super_combo_list = sorted_domains_combo(super.split('$'))
+
             # We also need to count instances of arg as domain
-            if trio_fields[0] != trio_fields[1]:
-                dom_combo_list.append(trio_fields[1])
-                super_combo_list.append(trio_fields[1])
-            if trio_fields[2] in reference_amr_count.keys():
-                reference_amr_count[trio_fields[2]] += 1
-            else:
-                reference_amr_count[trio_fields[2]] = 1
+            if dom != arg:
+                dom_combo_list.append(arg)
+                super_combo_list.append(arg)
+
+            # Count each dom|amr, super|amr, and clstr|arg|dom|super|amr            
             for i in range(len(dom_combo_list)):
-                dom_id = "|".join((dom_combo_list[i], trio_fields[2]))
-                if dom_id in reference_dom_id_count.keys():
-                    reference_dom_id_count[dom_id] += 1
+                dom_amr = "|".join([dom_combo_list[i], amr])
+                super_amr = "|".join([super_combo_list[i], amr])
+                all_groups = '|'.join([clstr, arg, dom_combo_list[i], super_combo_list[i], amr])
+                
+                if dom_amr in reference_dom_amr_count.keys():
+                    reference_dom_amr_count[dom_amr] += 1
                 else:
-                    reference_dom_id_count[dom_id] = 1
-                super_id = "|".join((super_combo_list[i], super_fields[1]))
-                if super_id in reference_super_id_count.keys():
-                    reference_super_id_count[super_id] += 1
+                    reference_dom_amr_count[dom_amr] = 1
+                if super_amr in reference_super_amr_count.keys():
+                    reference_super_amr_count[super_amr] += 1
                 else:
-                    reference_super_id_count[super_id] = 1
+                    reference_super_amr_count[super_amr] = 1
+                if all_groups not in reference_all_groups_count:
+                    reference_all_groups_count[all_groups] = 1
+                else:
+                    reference_all_groups_count[all_groups] += 1
 
         # Check to see if output directory exist, or make one
         if not os.path.exists(OUTPUT_LOC):
@@ -125,13 +145,7 @@ def main():
         
         # Go through each run one at a time
         for sample_id in sample_id_list:
-            for identity in [30, 50, 80]:
-                # Make vertices for all four labels
-                amr_vertices: dict[str, AmrVertex] = dict()
-                clstr_vertices: dict[str, ClstrVertex] = dict()
-                domain_vertices: dict[str, DomainVertex] = dict()
-                super_vertices: dict[str, SuperVertex] = dict()
-                
+            for identity in [30, 50, 80]:                
                 # Get Diamond alignment information
                 query_dict: dict[str, Query] = dict()
                 with open("/".join((
@@ -164,131 +178,280 @@ def main():
                     if diamond_amr != deeparg_amr:
                         key = "\t".join((diamond_amr, deeparg_amr))
                 deeparg_list.clear()
+
+                # Get info on query alignments amr and all groups proportion
+                print(f"Sample {sample_id} Alignment identity {identity} Model {model}")
+                all_labels_df = pd.DataFrame(
+                    columns=[
+                        "clstr", "arg", "dom", "super", "amr", "count", 
+                        "amr ref count", "clstr|amr ref count",
+                        "dom|amr ref count", "super|amr ref count",
+                        "Is Diamond Best Hit Label", 
+                        "Is Diamond Best-Hit Class",
+                        "Is Most Frequent Class",
+                        "Is DeepARG Class",
+                        "Diamond Class",
+                        "Diamond clstr",
+                        "Diamond dom",
+                        "Diamond super",
+                        "Most Frequent Class",
+                        "DeepARG Class",
+                        "Query"])
+                query_count = 0
+                for query in query_dict.values():
+                    if not query.is_deeparg_hit():
+                        continue
+                    if not query.has_multiple_classes():
+                        continue
+                    if query_count % 1000 == 0:
+                        print(f"Query # {query_count}")
+                    query_count+=1
+                    query_vector = query.create_query_vector(
+                        reference_clstr_amr_count,
+                        reference_dom_amr_count,
+                        reference_super_amr_count,
+                        reference_amr_count)
+                    if not query_vector.has_multiple_possible_classes():
+                        continue
+                    all_labels_df = pd.concat(
+                        [all_labels_df, query_vector.get_label_counts()],
+                        ignore_index=True)
+
+
+                all_labels_df.insert(
+                    loc=0, column='Model', value=model)
+                all_labels_df.insert(
+                    loc=0, column='Alignment Identity', value=identity)
+                all_labels_df.insert(
+                    loc=0, column='Sample ID', value=sample_id)
+                
+                if first:
+                    all_labels_df.to_csv(
+                        path_or_buf=f"{OUTPUT_LOC}/label_counts.tsv",
+                        sep="\t", float_format='{:.4f}'.format, index=False)
+                else:
+                    all_labels_df.to_csv(
+                        path_or_buf=f"{OUTPUT_LOC}/label_counts.tsv",
+                        sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                if not GRAPH:
+                    first = False
                 
                 # Create vertices and edges to represent labels and pairs, respectively
-                for query in query_dict.values():
-                    if query.is_deeparg_hit():
-                        diamond_ids = query.get_top_diamond_alignment_domain_identifiers()
-                        (clstr_dia, trio_dia, dom_dia, super_dia) = diamond_ids
-                        is_alignment_domain_less = len(query.get_top_diamond_alignment().get_domains()) == 0
-                        amr_dia = query.get_top_diamond_classification()
+                if GRAPH:
+                    amr_vertices: dict[str, AmrVertex] = dict()
+                    clstr_vertices: dict[str, ClstrVertex] = dict()
+                    arg_vertices: dict[str, ArgVertex] = dict()
+                    domain_vertices: dict[str, DomainVertex] = dict()
+                    super_vertices: dict[str, SuperVertex] = dict()
+                    all_groups_vertices: dict[str, MultiVertex] = dict()
+                    for query in query_dict.values():
+                        if query.is_deeparg_hit():
+                            (clstr_diamond, arg_diamond, dom_diamond, super_diamond, amr_diamond) = (
+                                query.get_top_diamond_alignment().get_groupings())
+                            is_alignment_domain_less = len(query.get_top_diamond_alignment().get_domains()) == 0
+                            
+                            all_groups_diamond = '|'.join(query.get_top_diamond_alignment().get_groupings())
+                            clstr_amr_diamond = '|'.join([clstr_diamond, amr_diamond])
+                            arg_amr_diamond = '|'.join([arg_diamond, amr_diamond])
+                            dom_amr_diamond = '|'.join([dom_diamond, amr_diamond])
+                            super_amr_diamond = '|'.join([super_diamond, amr_diamond])
 
-                        if amr_dia not in amr_vertices.keys():
-                            amr_vertices[amr_dia] = AmrVertex(amr_dia, reference_amr_count[amr_dia])
-                        if clstr_dia not in clstr_vertices.keys():
-                            clstr_vertices[clstr_dia] = ClstrVertex(clstr_dia, reference_clstr_id_count[clstr_dia])
-                        if dom_dia not in domain_vertices.keys():
-                            domain_vertices[dom_dia] = DomainVertex(
-                                dom_dia, reference_dom_id_count[dom_dia], is_alignment_domain_less)
-                        if super_dia not in super_vertices.keys():
-                            super_vertices[super_dia] = SuperVertex(
-                                super_dia, reference_super_id_count[super_dia], is_alignment_domain_less)
+                            if all_groups_diamond not in all_groups_vertices.keys():
+                                all_groups_vertices[all_groups_diamond] = MultiVertex(
+                                    all_groups_diamond, 
+                                    reference_all_groups_count[all_groups_diamond], 
+                                    is_alignment_domain_less)
+                            
+                            if amr_diamond not in amr_vertices.keys():
+                                amr_vertices[amr_diamond] = AmrVertex(
+                                    amr_diamond, reference_amr_count[amr_diamond])
+                            
+                            if clstr_amr_diamond not in clstr_vertices.keys():
+                                clstr_vertices[clstr_amr_diamond] = ClstrVertex(
+                                    clstr_amr_diamond, reference_clstr_amr_count[clstr_amr_diamond])
+                            
+                            if arg_amr_diamond not in arg_vertices.keys():
+                                arg_vertices[arg_amr_diamond] = ArgVertex(
+                                    arg_amr_diamond, reference_arg_amr_count[arg_amr_diamond])
+                            
+                            if dom_amr_diamond not in domain_vertices.keys():
+                                domain_vertices[dom_amr_diamond] = DomainVertex(
+                                    dom_amr_diamond, 
+                                    reference_dom_amr_count[dom_amr_diamond], 
+                                    is_alignment_domain_less)
+                            
+                            if super_amr_diamond not in super_vertices.keys():
+                                super_vertices[super_amr_diamond] = SuperVertex(
+                                    super_amr_diamond, 
+                                    reference_super_amr_count[super_amr_diamond], 
+                                    is_alignment_domain_less)
 
-                        if not query.are_diamond_and_deeparg_the_same():
-                            deeparg_ids = query.get_top_deeparg_hit_domain_identifiers()
-                            (clstr_dee, trio_dee, dom_dee, super_dee) = deeparg_ids
-                            is_alignment_domain_less = len(query.get_top_deeparg_hit().get_domains()) == 0
-                            amr_dee = query.get_top_deeparg_classification()
+                            if not query.are_diamond_and_deeparg_the_same():
+                                (clstr_deeparg, arg_deeparg, dom_deeparg, super_deeparg, amr_deeparg) = (
+                                    query.get_top_deeparg_hit().get_groupings())
+                                is_alignment_domain_less = len(query.get_top_deeparg_hit().get_domains()) == 0
+                                
+                                all_groups_deeparg = '|'.join(query.get_top_deeparg_alignment().get_groupings())
+                                clstr_amr_deeparg = '|'.join([clstr_deeparg, amr_deeparg])
+                                arg_amr_deeparg = '|'.join([arg_deeparg, amr_deeparg])
+                                dom_amr_deeparg = '|'.join([dom_deeparg, amr_deeparg])
+                                super_amr_deeparg = '|'.join([super_deeparg, amr_deeparg])
 
-                            if amr_dee not in amr_vertices.keys():
-                                amr_vertices[amr_dee] = AmrVertex(amr_dee, reference_amr_count[amr_dee])
-                            amr_edge = amr_vertices[amr_dia].get_edge_from_a(amr_vertices[amr_dee])
-                            amr_vertices[amr_dee].add_edge_to_b(amr_vertices[amr_dia], amr_edge)
+                                if all_groups_deeparg not in all_groups_vertices.keys():
+                                    all_groups_vertices[all_groups_deeparg] = MultiVertex(
+                                        all_groups_deeparg, 
+                                        reference_all_groups_count[all_groups_deeparg], 
+                                        is_alignment_domain_less)
+                                all_groups_vertices[all_groups_deeparg].add_edge_to_b(
+                                    all_groups_vertices[all_groups_diamond], 
+                                    all_groups_vertices[all_groups_diamond].get_edge_from_a(
+                                        all_groups_vertices[all_groups_deeparg]))
 
-                            if clstr_dee not in clstr_vertices.keys():
-                                clstr_vertices[clstr_dee] = ClstrVertex(clstr_dee, reference_clstr_id_count[clstr_dee])
-                            clstr_edge = clstr_vertices[clstr_dia].get_edge_from_a(clstr_vertices[clstr_dee])
-                            clstr_vertices[clstr_dee].add_edge_to_b(clstr_vertices[clstr_dia], clstr_edge)
+                                if amr_deeparg not in amr_vertices.keys():
+                                    amr_vertices[amr_deeparg] = AmrVertex(
+                                        amr_deeparg, reference_amr_count[amr_deeparg])
+                                amr_vertices[amr_deeparg].add_edge_to_b(
+                                    amr_vertices[amr_diamond], 
+                                    amr_vertices[amr_diamond].get_edge_from_a(
+                                        amr_vertices[amr_deeparg]))
 
-                            if dom_dee not in domain_vertices.keys():
-                                domain_vertices[dom_dee] = DomainVertex(
-                                    dom_dee, reference_dom_id_count[dom_dee], is_alignment_domain_less)
-                            dom_edge = domain_vertices[dom_dia].get_edge_from_a(domain_vertices[dom_dee])
-                            domain_vertices[dom_dee].add_edge_to_b(domain_vertices[dom_dia], dom_edge)
+                                if clstr_amr_deeparg not in clstr_vertices.keys():
+                                    clstr_vertices[clstr_amr_deeparg] = ClstrVertex(
+                                        clstr_amr_deeparg, reference_clstr_amr_count[clstr_amr_deeparg])
+                                clstr_vertices[clstr_amr_deeparg].add_edge_to_b(
+                                    clstr_vertices[clstr_amr_diamond], 
+                                    clstr_vertices[clstr_amr_diamond].get_edge_from_a(
+                                        clstr_vertices[clstr_amr_deeparg]))
 
-                            if super_dee not in super_vertices.keys():
-                                super_vertices[super_dee] = SuperVertex(
-                                    super_dee, reference_super_id_count[super_dee], is_alignment_domain_less)
-                            super_edge = super_vertices[super_dia].get_edge_from_a(super_vertices[super_dee])
-                            super_vertices[super_dee].add_edge_to_b(super_vertices[super_dia], super_edge)
-                        
+                                if arg_amr_deeparg not in arg_vertices.keys():
+                                    arg_vertices[arg_amr_deeparg] = ArgVertex(
+                                        arg_amr_deeparg, reference_arg_amr_count[arg_amr_deeparg])
+                                arg_vertices[arg_amr_deeparg].add_edge_to_b(
+                                    arg_vertices[arg_amr_diamond], 
+                                    arg_vertices[arg_amr_diamond].get_edge_from_a(
+                                        arg_vertices[arg_amr_deeparg]))
+
+                                if dom_amr_deeparg not in domain_vertices.keys():
+                                    domain_vertices[dom_amr_deeparg] = DomainVertex(
+                                        dom_amr_deeparg, 
+                                        reference_dom_amr_count[dom_amr_deeparg], 
+                                        is_alignment_domain_less)
+                                domain_vertices[dom_amr_deeparg].add_edge_to_b(
+                                    domain_vertices[dom_amr_diamond], 
+                                    domain_vertices[dom_amr_diamond].get_edge_from_a(
+                                        domain_vertices[dom_amr_deeparg]))
+
+                                if super_amr_deeparg not in super_vertices.keys():
+                                    super_vertices[super_amr_deeparg] = SuperVertex(
+                                        super_amr_deeparg, 
+                                        reference_super_amr_count[super_amr_deeparg], 
+                                        is_alignment_domain_less)
+                                super_vertices[super_amr_deeparg].add_edge_to_b(
+                                    super_vertices[super_amr_diamond], 
+                                    super_vertices[super_amr_diamond].get_edge_from_a(
+                                        super_vertices[super_amr_deeparg]))
+                            
+                            else:
+                                amr_vertices[amr_diamond].increment_states_but_not_pair()
+                                arg_vertices[arg_amr_diamond].increment_states_but_not_pair()
+                                clstr_vertices[clstr_amr_diamond].increment_states_but_not_pair()
+                                domain_vertices[dom_amr_diamond].increment_states_but_not_pair()
+                                super_vertices[super_amr_diamond].increment_states_but_not_pair()
+                                all_groups_vertices[all_groups_diamond].increment_states_but_not_pair()
+
+
+                    # Create graphs then build switch pair and connected subgraph differential distribution tables
+                    amr_graph = Graph(amr_vertices)
+                    try:
+                        # We only need switch pair differential distribution table for amr
+                        amr_pair_abundance = amr_graph.get_pair_table(sample_id, identity, model)
+                        if first:
+                            amr_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{AMR_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
                         else:
-                            amr_vertices[amr_dia].increment_states_but_not_pair()
-                            clstr_vertices[clstr_dia].increment_states_but_not_pair()
-                            domain_vertices[dom_dia].increment_states_but_not_pair()
-                            super_vertices[super_dia].increment_states_but_not_pair()
+                            amr_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{AMR_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                            
+                        arg_graph = Graph(arg_vertices)
+                        arg_pair_abundance = arg_graph.get_pair_table(sample_id, identity, model)
+                        if first:
+                            arg_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{ARG_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                        else:
+                            arg_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{ARG_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                            
+                        all_groups_graph = Graph(all_groups_vertices)
+                        all_groups_pair_abundance = all_groups_graph.get_pair_table(sample_id, identity, model)
+                        if first:
+                            all_groups_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance.tsv",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                        else:
+                            all_groups_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance.tsv",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
 
+                        clstr_graph = Graph(clstr_vertices)
+                        clstr_connected_abundance = clstr_graph.get_connected_table(sample_id, identity, model)
+                        clstr_pair_abundance = clstr_graph.get_pair_table(sample_id, identity, model)
+                        if first:
+                            clstr_connected_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{CLUSTER_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                            clstr_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{CLUSTER_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                        else:
+                            clstr_connected_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{CLUSTER_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                            clstr_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{CLUSTER_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
 
-                # Create graphs then build switch pair and connected subgraph differential distribution tables
-                amr_graph = Graph(amr_vertices)
-                try:
-                    # We only need switch pair differential distribution table for amr
-                    amr_pair_abundance = amr_graph.get_pair_table(sample_id, identity, model)
-                    if first:
-                        amr_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{AMR_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, index=False)
-                    else:
-                        amr_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{AMR_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                        domain_graph = Graph(domain_vertices)
+                        domain_connected_abundance = domain_graph.get_connected_table(sample_id, identity, model)
+                        domain_pair_abundance = domain_graph.get_pair_table(sample_id, identity, model)
+                        if first:
+                            domain_connected_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{DOMAIN_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                            domain_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{DOMAIN_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                        else:
+                            domain_connected_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{DOMAIN_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                            domain_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{DOMAIN_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
 
-                    clstr_graph = Graph(clstr_vertices)
-                    clstr_connected_abundance = clstr_graph.get_connected_table(sample_id, identity, model)
-                    clstr_pair_abundance = clstr_graph.get_pair_table(sample_id, identity, model)
-                    if first:
-                        clstr_connected_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{CLUSTER_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, index=False)
-                        clstr_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{CLUSTER_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, index=False)
-                    else:
-                        clstr_connected_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{CLUSTER_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
-                        clstr_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{CLUSTER_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
-
-                    domain_graph = Graph(domain_vertices)
-                    domain_connected_abundance = domain_graph.get_connected_table(sample_id, identity, model)
-                    domain_pair_abundance = domain_graph.get_pair_table(sample_id, identity, model)
-                    if first:
-                        domain_connected_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{DOMAIN_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, index=False)
-                        domain_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{DOMAIN_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, index=False)
-                    else:
-                        domain_connected_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{DOMAIN_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
-                        domain_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{DOMAIN_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
-
-                    super_graph = Graph(super_vertices)
-                    super_connected_abundance = super_graph.get_connected_table(sample_id, identity, model)
-                    super_pair_abundance = super_graph.get_pair_table(sample_id, identity, model)
-                    if first:
-                        super_connected_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{SUPER_OUTPUT}",
-                            sep="\t",  float_format='{:.4f}'.format, index=False)
-                        super_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{SUPER_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, index=False)
-                    else:
-                        super_connected_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{SUPER_OUTPUT}",
-                            sep="\t",  float_format='{:.4f}'.format, mode='a', header=False, index=False)
-                        super_pair_abundance.to_csv(
-                            path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{SUPER_OUTPUT}",
-                            sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
-                    
-                    first = False
-                except:
-                    continue
+                        super_graph = Graph(super_vertices)
+                        super_connected_abundance = super_graph.get_connected_table(sample_id, identity, model)
+                        super_pair_abundance = super_graph.get_pair_table(sample_id, identity, model)
+                        if first:
+                            super_connected_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{SUPER_OUTPUT}",
+                                sep="\t",  float_format='{:.4f}'.format, index=False)
+                            super_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{SUPER_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, index=False)
+                        else:
+                            super_connected_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/connected_subgraph_abundance_{SUPER_OUTPUT}",
+                                sep="\t",  float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                            super_pair_abundance.to_csv(
+                                path_or_buf=f"{OUTPUT_LOC}/switch_pair_abundance_{SUPER_OUTPUT}",
+                                sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
+                        
+                        first = False
+                    except:
+                        continue
 
 main()

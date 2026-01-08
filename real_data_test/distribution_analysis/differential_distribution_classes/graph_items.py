@@ -178,19 +178,41 @@ class StateB(State):
                 edges[(edge[0], vertex_b)] = edge[1]
         return edges
 
-# Old class, will need to remove
-class TrioVertex(Vertex):
-    dom_acc: str
+class ArgVertex(Vertex):
     arg_id: str
 
     def __init__(self, id: str, ref_count: int):
-        (self.dom_acc, self.arg_id, self.amr_cl) = tuple(id.split("|"))
+        (self.arg_id, self.amr_cl) = tuple(id.split("|"))
         self.ref_count = ref_count
         self.state_a = StateA(self)
         self.state_b = StateB(self)
 
     def get_name(self) -> str:
-        return "|".join((self.dom_acc, self.arg_id, self.amr_cl))
+        return "|".join((self.arg_id, self.amr_cl))
+    
+    def has_arg_label(self) -> bool:
+        return False
+    
+class MultiVertex(Vertex):
+    arg: str
+    clstr: str
+    dom: str
+    super: str
+    is_arg_label: bool
+
+    def __init__(
+            self, id: str, ref_count: int, is_arg_label: bool):
+        self.clstr, self.arg, self.dom, self.super, self.amr_cl = tuple(id.split('|'))
+        self.ref_count = ref_count
+        self.state_a = StateA(self)
+        self.state_b = StateB(self)
+        self.is_arg_label = is_arg_label
+
+    def get_name(self) -> str:
+        return "|".join((self.clstr, self.arg, self.dom, self.super, self.amr_cl))
+    
+    def has_arg_label(self) -> bool:
+        return False
     
 # Class for amr label
 class AmrVertex(Vertex):

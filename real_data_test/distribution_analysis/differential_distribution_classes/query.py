@@ -77,6 +77,12 @@ class Query:
     def get_all_alignments(self) -> list[Alignment] :
         return self.alignments
     
+    def has_multiple_classes(self) -> bool:
+        for a in self.alignments:
+            if a.get_classification() != self.get_top_diamond_classification():
+                return True
+        return False
+    
     def get_all_alignments_names(self) -> list[str]:
         return [alignment.get_name() for alignment in self.alignments]
     
@@ -92,9 +98,9 @@ class Query:
     def get_top_diamond_classification(self) -> str :
         return self.get_top_diamond_alignment().get_classification()
 
-    def get_top_diamond_alignment_domain_identifiers(self) -> tuple[str, str, str, str] :
-        """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids of best Diamond alignment, respectively"""
-        return self.get_top_diamond_alignment().get_domain_identifiers()
+    def get_top_diamond_alignment_grouping(self) -> tuple[str, str, str, str] :
+        """Returns clstr, arg, dom, super and amr of best Diamond alignment, respectively"""
+        return self.get_top_diamond_alignment().get_groupings()
     
     def get_top_deeparg_hit(self) -> Alignment :
         if not self.deeparg_hit:
@@ -107,15 +113,25 @@ class Query:
             return "none"
         return self.get_top_deeparg_hit().get_classification()
     
-    def get_top_deeparg_hit_domain_identifiers(self) -> tuple[str, str, str, str] :
-        """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids of DeepARG hit, respectively"""
-        return self.get_top_deeparg_hit().get_domain_identifiers()
+    def get_top_deeparg_hit_grouping(self) -> tuple[str, str, str, str] :
+        """Returns clstr, arg, dom, super and amr of DeepARG hit, respectively"""
+        return self.get_top_deeparg_hit().get_groupings()
     
     def passed_cov_threshold(self) -> bool :
         return len(self.alignments) > 0
     
-    def create_query_vector(self) -> "QueryVector":
-        return QueryVector(self)
+    def create_query_vector(
+            self,
+            reference_clstr_amr_count: dict[str, int],
+            reference_dom_amr_count: dict[str, int],
+            reference_super_amr_count: dict[str, int],
+            reference_amr_count: dict[str, int]) -> "QueryVector":
+        return QueryVector(
+            self,
+            reference_clstr_amr_count,
+            reference_dom_amr_count,
+            reference_super_amr_count,
+            reference_amr_count)
     
     def create_query_decision_vector(
             self, shared_arrays_data: list[tuple]) -> "QueryDecisionVector":
@@ -192,24 +208,80 @@ class QueryDecisionVector:
         return self.decision_vector
     
 class QueryVector:
-    feature_matrix: pd.DataFrame
+    label_count: pd.DataFrame
+
     deeparg_class: str
+    diamond_class: str
+    most_freq_class: str
+
+    deeparg_labels: tuple[str,str,str,str,str]
+    diamond_labels: tuple[str,str,str,str,str]
+
     name: str
     
-    def __init__(self, query: Query):
-        self.deeparg_class = query.get_top_deeparg_classification(False)
+    def __init__(
+            self, query: Query, 
+            reference_clstr_amr_count: dict[str, int],
+            reference_dom_amr_count: dict[str, int],
+            reference_super_amr_count: dict[str, int],
+            reference_amr_count: dict[str, int]):
         names = np.array(query.get_all_alignments_names())
         groupings = np.array(query.get_all_alignment_groupings())
+        bitscores = np.array(query.get_all_alignment_bitscores())
+
         index = pd.MultiIndex.from_arrays(arrays=[
             groupings[:,0], groupings[:,1], groupings[:,2],
             groupings[:,3], groupings[:,4], names], names=[
                 "clstr", "arg", "dom", "super", "amr", "names"])
-        self.feature_matrix = pd.DataFrame(
-            data=query.get_all_alignment_bitscores(), index=index)
+        
+        feature_matrix = pd.DataFrame(
+            data={"bitscore": bitscores}, index=index)
+
+        self.label_count = (feature_matrix
+            .groupby(level=["clstr", "arg", "dom", "super", "amr"])["bitscore"]
+            .count()
+            .reset_index()
+            .rename(columns={"bitscore":"count"}))
+        self.label_count["amr ref count"] = self.label_count.apply(
+            lambda x: reference_amr_count[x['amr']], axis=1)
+        self.label_count["clstr|amr ref count"] = self.label_count.apply(
+            lambda x: reference_clstr_amr_count['|'.join((x['clstr'], x['amr']))], axis=1)
+        self.label_count["dom|amr ref count"] = self.label_count.apply(
+            lambda x: reference_dom_amr_count['|'.join((x['dom'], x['amr']))], axis=1)
+        self.label_count["super|amr ref count"] = self.label_count.apply(
+            lambda x: reference_super_amr_count['|'.join((x['super'], x['amr']))], axis=1)
+        
         self.name = query.get_query_name()
+
+        self.deeparg_class = query.get_top_deeparg_classification(False)
+        self.diamond_class = query.get_top_diamond_classification()
+        self.most_freq_class = self.label_count.groupby(by=["amr"])["count"].sum().idxmax()
+
+        self.diamond_labels = query.get_top_diamond_alignment_grouping()
+
+        self.label_count["Is Diamond Best Hit Label"] = self.label_count.apply(
+            lambda x: tuple(x["clstr":"amr"].to_list()) == self.diamond_labels, axis=1)
+        self.label_count["Is Diamond Best-Hit Class"] = self.label_count.apply(
+            lambda x: x["amr"] == self.diamond_class, axis=1)
+        self.label_count["Is Most Frequent Class"] = self.label_count.apply(
+            lambda x: x["amr"] == self.most_freq_class, axis=1)
+        self.label_count["Is DeepARG Class"] = self.label_count.apply(
+            lambda x: x["amr"] == self.deeparg_class, axis=1)
+        
+
+        self.label_count["Diamond Class"] = self.diamond_class
+        self.label_count["Diamond Clstr"] = self.diamond_labels[0]
+        self.label_count["Diamond Dom"] = self.diamond_labels[2]
+        self.label_count["Diamond Super"] = self.diamond_labels[3]
+        self.label_count["Most Frequent Class"] = self.most_freq_class
+        self.label_count["DeepARG Class"] = self.deeparg_class
+        self.label_count["Query"] = self.name
         
     def has_multiple_possible_classes(self) -> bool :
-        return len(self.feature_matrix.index.get_level_values("amr").drop_duplicates()) > 1
+        return len(self.label_count["amr"].drop_duplicates()) > 1
+    
+    def is_deeparg_unexpected(self) -> bool :
+        return (self.deeparg_class != self.diamond_class) or (self.deeparg_class != self.most_freq_class)
     
     def is_deeparg_hit(self) -> bool :
         return self.deeparg_class != "none"
@@ -217,18 +289,11 @@ class QueryVector:
     def get_deeparg_class(self) -> str :
         return self.deeparg_class
     
-    def get_refs_and_matrix_indices(self) -> dict[str, pd.Series] :
-        ref_matrix_indices = dict()
-        matrix_indices = self.feature_matrix.index.to_frame()
-        for row in matrix_indices.iterrows():
-            ref_matrix_indices.update({row[1]["names"]:row[1]})
-        return ref_matrix_indices
-    
     def get_query_name(self) -> str :
         return self.name
-
+    
+    def get_label_counts(self) -> pd.DataFrame :
+        return self.label_count
+    
     def get_feature_matrix(self) -> pd.DataFrame :
         return self.feature_matrix
-        
-    def get_reference_names(self) -> set[str] :
-        return set(self.feature_matrix.index.get_level_values("names").values)

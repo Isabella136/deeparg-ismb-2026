@@ -46,13 +46,4 @@ class DomainContainer(ABC):
         if len(self_super_accs) == 0:
             self_super_accs.append(self.get_arg_id())
         return "$".join(self_super_accs)
-    
-    def get_domain_identifiers(self) -> tuple[str, str, str, str] :
-        """Returns clstr|amr, dom|arg|amr, dom|amr, and super|amr ids, respectively"""
-        clstr_id = "|".join((str(self.get_cluster()), self.get_classification()))
-        arg_id = "|".join((self.get_domain_ids(), self.get_arg_id(), self.get_classification()))
-        dom_id = "|".join((self.get_domain_ids(), self.get_classification()))
-        super_id = "|".join((self.get_super_ids(), self.get_classification()))
-
-        return (clstr_id, arg_id, dom_id, super_id)
         
