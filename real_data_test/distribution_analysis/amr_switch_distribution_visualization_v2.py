@@ -692,10 +692,10 @@ custom_cmap = LinearSegmentedColormap.from_list("custom_gradient", custom_colors
 custom_cmap.set_bad()
 
 
-share = True
+share = False
 most_freq = True
 if most_freq and not share:
-    database = True
+    database = False
     if database:
         amr_count_df = (label_df[["amr", "amr ref count"]]
             .drop_duplicates()
@@ -737,7 +737,7 @@ if most_freq and not share:
 
     # Label x-ticks
     ax_left.set_xticks(
-        ticks=np.array(range(1, 32, 2)),
+        ticks=np.array(range(1, len(amr_db_heatmap_df.index.get_level_values("Class")), 2)),
         labels=amr_db_heatmap_df.index.get_level_values("Class").drop_duplicates(),
         rotation_mode='anchor',
         rotation=45,
@@ -747,7 +747,7 @@ if most_freq and not share:
 
     # Label y-ticks
     ax_left.set_yticks(
-        ticks=np.array(range(1, 69, 3)) + 0.5,
+        ticks=np.array(range(1, len(amr_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
         labels=amr_db_heatmap_df.columns.get_level_values("Class").drop_duplicates(),
         rotation_mode='anchor',
         fontsize=20)
@@ -974,21 +974,21 @@ ax_super.set_xticks(
 
 # Label y-ticks
 ax_amr.set_yticks(
-    ticks=np.array(range(1, 69, 3)) + 0.5,
+    ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
     labels=amr_db_heatmap_df.columns.get_level_values("Class").drop_duplicates(),
     rotation_mode='anchor',
     fontsize=20)
 ax_clstr.set_yticks(
-    ticks=np.array(range(1, 69, 3)) + 0.5,
-    labels=np.full(shape=23, fill_value=""))
+    ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
+    labels=np.full(shape=len(domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates()), fill_value=""))
 ax_domain.set_yticks(
-    ticks=np.array(range(1, 69, 3)) + 0.5,
+    ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
     labels=domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates(),
     rotation_mode='anchor',
     fontsize=20)
 ax_super.set_yticks(
-    ticks=np.array(range(1, 69, 3)) + 0.5,
-    labels=np.full(shape=23, fill_value=""))
+    ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
+    labels=np.full(shape=len(domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates()), fill_value=""))
 
 # Title
 ax_amr.set_title(

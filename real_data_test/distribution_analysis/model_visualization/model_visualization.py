@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import pickle
-from sklearn import tree, feature_selection
+from sklearn import tree, feature_selection, model_selection
 from matplotlib import pyplot as plt
 from multiprocessing import Pool, shared_memory
 import sys
@@ -102,6 +102,7 @@ if __name__ == '__main__':
             clstr_amr_count: dict[str, int] = dict()
             dom_amr_count: dict[str, int] = dict()
             super_amr_count: dict[str, int] = dict()
+            amr_count: dict[str, int] = dict()
             for ref in ref_dict.values():
                 ref_ids = ref.get_domain_identifiers()
                 (clstr_id, trio_id, dom_id, super_id) = ref_ids
@@ -114,6 +115,9 @@ if __name__ == '__main__':
                 super_fields = super_id.split('|')
                 dom_list = trio_fields[0].split('$')
                 super_list = super_fields[0].split('$')
+                if trio_fields[2] not in amr_count:
+                    amr_count[trio_fields[2]] = 0
+                amr_count[trio_fields[2]] += 1
                 # We may have numerous domains in gene; should count each potential combination as well
                 dom_combo_list = sorted_domains_combo(dom_list)
                 super_combo_list = sorted_domains_combo(super_list)
@@ -137,7 +141,8 @@ if __name__ == '__main__':
             features = np.concat((
                 list(ref_dict.keys()), list(clstr_amr_count.keys()), 
                 ["dom:"+x for x in list(dom_amr_count.keys())], 
-                ["super:"+x for x in list(super_amr_count.keys())]), axis=None)
+                ["super:"+x for x in list(super_amr_count.keys())],
+                list(metadata_IO_DL['Y_rev'].values())), axis=None)
             try:
                 features_memory = shared_memory.SharedMemory(name='features')
                 features_memory.unlink()
@@ -270,22 +275,29 @@ if __name__ == '__main__':
                 print("Remove useless features")
                 sys.stdout.flush()
                 selector = feature_selection.VarianceThreshold()
-                X_new = selector.fit_transform(X, Y)
                 print(f"No. of features before: {len(curr_features)}")
+                sys.stdout.flush()
+                X_new = selector.fit_transform(X, Y)
                 remaining_features = selector.get_feature_names_out(curr_features)
-                print(f"No. of features after: {len(remaining_features)}")
+                print(f"No. of features after variance selection: {len(remaining_features)}")
+                sys.stdout.flush()
                 Y_dedup = Y.drop_duplicates().sort_values()
                 get_amr = np.vectorize(lambda i: dict(metadata_IO_DL['Y_rev']).get(int(i), "none"))
                 amr_vals = get_amr(Y_dedup)
-                print("Making tree")
+                # print("Set up train and test")
+                # X_train, X_test, Y_train, Y_test = model_selection.train_test_split(
+                #     X_new, Y, test_size=0.1)
+                print("Making trees")
                 sys.stdout.flush()
-                decision_tree = tree.DecisionTreeClassifier().fit(X_new, Y)
+                decision_tree = tree.DecisionTreeClassifier(max_depth = 20 if model=="LS" else 10).fit(X_new, Y)
                 print("Ploting tree")
                 sys.stdout.flush()
-                fig = plt.figure(figsize=(1920,1080), dpi=100)
+                fig = plt.figure(figsize=(384,108), dpi=100)
                 ax = fig.add_axes((0,0,1,1))
                 tree.plot_tree(decision_tree, ax=ax, feature_names=remaining_features, class_names=amr_vals)
                 print("Saving tree")
                 sys.stdout.flush()
                 fig.savefig(f"decision_tree_{fig_name}_{model}.png")
                 sys.stdout.flush()
+
+        print("DONE!")
