@@ -56,6 +56,12 @@ feature_args: np.ndarray = get_arg(feature.index.to_numpy())
 arg_count_df = np.unique_counts(feature_args)
 arg_count_df = pd.DataFrame({"arg": arg_count_df.values, "count": arg_count_df.counts})
 
+# Get clstr|class count for DeepARG database from feature data
+clstr_class_count_df = (pd.DataFrame(feature
+        .reset_index()[["amr class", "v2-only cluster index"]]
+        .value_counts(dropna=False, sort=False))
+    .reset_index(names=["amr class", "clstr"]))
+
 # Using code from good old stackoverflow: 
     # https://stackoverflow.com/questions/71688904/dealing-with-multiple-values-in-pandas-dataframe-cell
 # Get domain|class count for DeepARG database from feature data
@@ -81,7 +87,7 @@ indiv_domain_class_count_df = (
 # (Counting combos in multi-dom features as their own domain)
 combo_domain_class_count_df = (pd.DataFrame(feature
         .reset_index()[["amr class", "conserved domain(s) id(s)"]]
-        .value_counts(dropna=False, sort=False))
+        .value_counts(dropna=True, sort=False))
     .reset_index(names=["amr class", "domain"]))
 
 # Get arg|class count for DeepARG database from feature data
@@ -92,21 +98,27 @@ arg_class_count_df = (
         arg_class_count_df.value_counts(sort=False))
     .reset_index(names=["arg", "amr class"]))
 
-# Create a grid to show label distributions in database
-cb_palette = sn.color_palette("colorblind")
-plt.figure(figsize=(40, 20))
-joint = plt.axes((0.035,0.1,0.9,0.55))
-y_grid = plt.axes((0.945,0.1,0.05,0.55), sharey=joint)
-x_grid = plt.axes((0.035,0.7,0.9,0.26), sharex=joint)
+print(combo_domain_class_count_df.columns)
 
-# For the main joint axes, make scatter and violin plot of arg and domain size distribution per class
-# This means that we need to combine arg_class_count and combo_domain_class_count
-# s.t. we know which label is arg and which is domain:
-arg_class_count_df.insert(
+clstr_stats = pd.DataFrame(
+    data={
+        "average": clstr_class_count_df.groupby("amr class")["count"].mean(),
+        "max": clstr_class_count_df.groupby("amr class")["count"].max(),
+        "min": clstr_class_count_df.groupby("amr class")["count"].min()},
+    index=clstr_class_count_df["amr class"].drop_duplicates().sort_values())
+clstr_stats.reset_index(names="amr class", inplace=True)
+clstr_stats.insert(
     loc=0,
     column="label",
-    value="arg|amr")
-combo_domain_class_count_df.insert(
+    value="clstr|amr")
+combo_domain_stats = pd.DataFrame(
+    data={
+        "average": combo_domain_class_count_df.groupby(by="amr class")["count"].mean(),
+        "max": combo_domain_class_count_df.groupby(by="amr class")["count"].max(),
+        "min": combo_domain_class_count_df.groupby(by="amr class")["count"].min()},
+    index=combo_domain_class_count_df["amr class"].drop_duplicates().sort_values())
+combo_domain_stats.reset_index(names="amr class", inplace=True)
+combo_domain_stats.insert(
     loc=0,
     column="label",
     value="domain|amr")
@@ -116,169 +128,157 @@ sorted_class = (class_count_df
         ascending=False, 
         ignore_index=True)["amr class"])
 sort_class_by_size = np.vectorize(lambda x: sorted_class[sorted_class==x].index[0])
+label_stats = pd.DataFrame(
+    data= pd.concat([
+        clstr_stats,
+        combo_domain_stats], join='inner'),
+    columns=["label", "amr class", "average", "max", "min"]).sort_values(
+        by="amr class",
+        key=sort_class_by_size)
+label_stats["max ratio"] = label_stats.apply(
+    lambda x: float(x["max"])/float(
+        class_count_df.loc[class_count_df["amr class"]==x["amr class"]]["amr class v2 count"].iat[0]),
+    axis=1)
+label_stats["min ratio"] = label_stats.apply(
+    lambda x: float(x["min"])/float(
+        class_count_df.loc[class_count_df["amr class"]==x["amr class"]]["amr class v2 count"].iat[0]),
+    axis=1)
+label_stats.to_csv("label_stats.csv")
+
+# Create a grid to show label distributions in database
+cb_palette = sn.color_palette("colorblind")
+custom_colors = [
+    cb_palette[0], # first color
+    cb_palette[1], # second color
+    '#000000' # last color
+]
+
+plt.figure(figsize=(40, 20))
+label = plt.axes((0.05,0.1,0.92,0.42))
+feature_ax = plt.axes((0.05,0.55,0.92,0.42), sharex=label)
+
+# We need to combine arg_class_count and combo_domain_class_count
+# s.t. we know which label is arg and which is domain:
+clstr_class_count_df.insert(
+    loc=0,
+    column="label",
+    value="clstr|amr")
+combo_domain_class_count_df.insert(
+    loc=0,
+    column="label",
+    value="domain|amr")
 label_distr_df = pd.DataFrame(
     data= pd.concat([
-        arg_class_count_df,
+        clstr_class_count_df,
         combo_domain_class_count_df], join='inner'),
     columns=["label", "amr class", "count"]).sort_values(
         by="amr class",
         key=sort_class_by_size)
+label_distr_df["ratio"] = label_distr_df.apply(
+    lambda x: float(x["count"])/float(
+        class_count_df.loc[class_count_df["amr class"]==x["amr class"]]["amr class v2 count"].iat[0]),
+    axis=1)
+label_distr_df.to_csv("label_distr_df.csv")
 
-sn.violinplot(
+sn.barplot(
     data=label_distr_df,
     x="amr class",
-    y="count",
+    y="ratio",
     hue="label",
-    ax=joint,
-    fill=False,
-    density_norm="count",
-    common_norm=False,
-    linewidth=3,
-    cut=0,
-    gap=.1,
-    inner=None,
-    legend=False,
+    hue_order=["clstr|amr", "domain|amr"],
+    estimator="median",
+    ax=label,
     palette=cb_palette[:2],
-    log_scale=10)
-joint.scatter(
-    x=(label_distr_df
-        .sort_values(by=["label", "amr class", "count"])
-        .drop_duplicates()
-        .apply(lambda x: (
-            sort_class_by_size(x["amr class"]) + (0.2 if x["label"] == "domain|amr" else -0.2)), 
-            axis=1)),
-    y=(label_distr_df
-        .sort_values(by=["label", "amr class", "count"])
-        .drop_duplicates()["count"]),
-    s=(label_distr_df
-       .value_counts(sort=False)
-       .to_frame()
-       .reset_index(names=["label", "amr class", "label count"])
-       .apply(lambda x: (
-            x["count"] / combo_domain_class_count_df.shape[0] if x["label"] == "domain|amr"
-            else x["count"] / arg_class_count_df.shape[0]), axis=1)
-       .to_numpy()*5000),
-    c=(label_distr_df
-        .sort_values(by=["label", "amr class", "count"])
-        .drop_duplicates()["label"]
-        .apply(lambda x: cb_palette[0] if x=="arg|amr" else cb_palette[1])))
-joint.set_xticks(
-    ticks=joint.get_xticks(), 
-    labels=joint.get_xticklabels(), 
+    errorbar=None,
+    alpha=0.5,
+    legend=True)
+    #log_scale=10)
+# sn.stripplot(
+#     data=label_stats,
+#     x="amr class",
+#     y="min ratio",
+#     hue="label",
+#     hue_order=["clstr|amr", "domain|amr"],
+#     ax=label,
+#     dodge=True,
+#     size=15,
+#     palette=cb_palette[:2],
+#     legend=True,
+#     marker="X")
+sn.stripplot(
+    data=label_stats,
+    x="amr class",
+    y="max ratio",
+    hue="label",
+    hue_order=["clstr|amr", "domain|amr"],
+    ax=label,
+    dodge=True,
+    size=15,
+    palette=cb_palette[:2],
+    legend=True)
+label.set_xticks(
+    ticks=label.get_xticks(), 
+    labels=label.get_xticklabels(), 
     fontsize=25, 
     rotation_mode="anchor", 
     rotation=45,
     ha='right',
     va='center')
-joint.set_yticks(
-    ticks=joint.get_yticks(),
-    labels=joint.get_yticklabels(),
+label.set_yticks(
+    ticks=label.get_yticks(),
+    labels=label.get_yticklabels(),
     fontsize=25,
     va='center')
-joint.set_ylim(bottom=1, top=1000)
-joint.set_xlabel(
+# label.set_ylim(bottom=1, top=1000)
+label.set_ylim(bottom=0, top=1.1)
+label.set_xlabel(
     xlabel="AMR Class",
     fontsize=35,
     loc='center',
     labelpad=0)
-joint.set_ylabel(
-    ylabel="Label Abundance (log)",
+label.set_ylabel(
+    ylabel="Average Feature Count Ratio",
     fontsize=35,
     loc='center')
-joint.legend(
-    handles=[
-        matplotlib.lines.Line2D(
-            [0], [0], color="w", marker='o', label='10% of unique arg|amr counts', 
-            markerfacecolor=cb_palette[0], markersize=np.sqrt(500.0)),
-        matplotlib.lines.Line2D(
-            [0], [0], color="w", marker='o', label='10% of unique domain|amr counts', 
-            markerfacecolor=cb_palette[1], markersize=np.sqrt(500.0)),
-        matplotlib.lines.Line2D(
-            [0], [0], color="w", marker='o', label='1% of unique arg|amr counts', 
-            markerfacecolor=cb_palette[0], markersize=np.sqrt(50.0)),
-        matplotlib.lines.Line2D(
-            [0], [0], color="w", marker='o', label='1% of unique domain|amr counts', 
-            markerfacecolor=cb_palette[1], markersize=np.sqrt(50.0))],
-    fontsize=25,
-    title_fontsize=25)
-joint.set_title(
+label.set_title(
     "B",
     loc="left",
     fontsize=35)
-
-# For the y marginal axes, make a kdeplot for domain|amr and arg|amr
-sn.kdeplot(
-    data=label_distr_df,
-    y="count",
-    hue="label",
-    ax=y_grid,
-    legend=False,
-    common_norm=False,
-    palette=cb_palette[:2],
-    linewidth=3)
-y_grid.set_xlabel(
-    xlabel="")
-y_grid.set_ylabel(
-    ylabel="")
-y_grid.tick_params(
-    axis='x', 
-    labelbottom=False)
-y_grid.tick_params(
-    axis='y', 
-    labelleft=False)
-y_grid.set_title(
-    "C",
-    loc="left",
-    fontsize=35)
-
-# For the x marginal axes, make a histogram for amr, domain per amr and arg per amr
-# This means modifying label_distr_df to add amr label
-modified_label_distr_df = (feature
-    .reset_index(drop=True)[["amr class", "amr class v2 count"]]
-    .sort_values(by="amr class v2 count", ascending=False)
-    .reset_index(drop=True)[["amr class"]])
-modified_label_distr_df.insert(
-    loc=0,
-    column="label",
-    value="amr")
-modified_label_distr_df = pd.concat(
-    [label_distr_df, modified_label_distr_df])
+label.legend(
+    handles=label.legend_.legend_handles,
+    #labels=["clstr|amr", "domain|amr", "clstr|amr min", "domain|amr min", "clstr|amr max", "domain|amr max"],
+    labels=["clstr|amr", "domain|amr", "clstr|amr max", "domain|amr max"],
+    fontsize=25)
 
 sn.histplot(
-    data=modified_label_distr_df,
+    data=feature,
     x="amr class",
-    hue="label",
-    ax=x_grid,
+    ax=feature_ax,
     legend=True,
-    fill=False,
+    fill=True,
     linewidth=3,
-    element="step",
-    stat="proportion",
+    element="bars",
     common_norm=False,
-    multiple="layer",
-    palette=cb_palette[:3])
-x_grid.set_yticks(
-    ticks=x_grid.get_yticks(),
-    labels=["", "", "", "", x_grid.get_yticklabels()[4], "", "", "", x_grid.get_yticklabels()[-1]],
+    shrink=0.8,
+    color="black")
+feature_ax.set_yticks(
+    ticks=feature_ax.get_yticks(),
+    labels= feature_ax.get_yticklabels(),
     fontsize=25)
-x_grid.set_ylabel(
-    ylabel="Proportion",
+feature_ax.set_ylabel(
+    ylabel="Feature Count",
     fontsize=35)
-x_grid.tick_params(
+feature_ax.tick_params(
     axis='x', 
     labelbottom=False)
-x_grid.set_xlabel(
+feature_ax.set_xlabel(
     xlabel="")
-x_grid.legend(
-    handles=x_grid.legend_.legend_handles,
-    labels=["arg|amr", "domain|amr", "feature"],
-    fontsize=25)
-x_grid.set_title(
+feature_ax.set_title(
     "A",
     loc="left",
     fontsize=35)
 
-joint.margins(x=0)
+label.margins(x=0)
 
 plt.savefig("db_distr.png")
 
