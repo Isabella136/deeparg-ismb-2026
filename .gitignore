@@ -28,7 +28,6 @@ real_data_test/orf_blast_analysis/protein_ids.txt
 *log*
 test/X*
 test/*difference*.tsv
-database/CDD_features*
 real_data_test/temp.py
 real_data_test/bacteria_refseq_protein*
 .vscode
@@ -36,7 +35,7 @@ real_data_test/distribution_analysis/target
 database/database_clustering/db*
 database/database_clustering/*.csv
 database/*.fasta
-database/*.csv
+database/v*.csv
 real_data_test/distribution_analysis/*.png
 real_data_test/distribution_analysis/*.txt
 real_data_test/distribution_analysis/differential_distribution_output
@@ -47,4 +46,6 @@ real_data_test/distribution_analysis/model_visualization/*.csv
 real_data_test/distribution_analysis/OLD
 real_data_test/samples/deeparg_hit_count.tsv
 database/test.html
-database/db_distr.png
+database/*.png
+database/blast_db.sh
+database/blast_results.txt

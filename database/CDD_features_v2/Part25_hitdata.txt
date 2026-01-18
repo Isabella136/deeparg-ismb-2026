@@ -1,0 +1,282 @@
+Query	Hit type	PSSM-ID	From	To	E-Value	Bitscore	Accession	Short name	Incomplete	Superfamily
+Q#1 - >AFR46589.1|FEATURES|QnrB58|fluoroquinolone|QnrB58	superfamily	439496	21	225	4.1469e-102	294.674	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#2 - >YP_004928104.1|FEATURES|CrpP|fluoroquinolone|CrpP	specific	411289	8	65	5.75327e-36	114.72	NF033696	CrpP_fam	 - 	cl41388
+Q#3 - >EEX02086.1|FEATURES|ANT(3'')-IIa|aminoglycoside|ANT(3'')-IIa	superfamily	184296	6	255	2.38388e-67	209.496	cl32927	PRK13746 superfamily	 - 	 - 
+Q#4 - >CAD09823.1|FEATURES|tetR|tetracycline|tetR	specific	172294	2	206	1.50355e-140	390.792	PRK13756	PRK13756	 - 	cl31640
+Q#5 - >AAC69328.1|FEATURES|Erm(30)|MLS|Erm(30)	specific	439801	17	260	8.48444e-68	213.448	COG0030	RsmA	 - 	cl42997
+Q#6 - >AJO16042.1|FEATURES|SHV-182|beta-lactam|SHV	specific	185339	1	284	0	563.708	PRK15442	PRK15442	 - 	cl21491
+Q#7 - >YP_007652797.1|FEATURES|BRP(MBL)|glycopeptide|BRP(MBL)	specific	319938	3	119	7.89014e-64	189.411	cd08350	BLMT_like	 - 	cl14632
+Q#8 - >AIT76099.1|FEATURES|CMY-114|beta-lactam|CMX	specific	236894	1	381	0	636.934	PRK11289	ampC	 - 	cl21491
+Q#9 - >AHE41344.1|FEATURES|QnrS7|fluoroquinolone|QnrS7	specific	440968	17	204	6.80219e-30	108.875	COG1357	YjbI	 - 	cl34238
+Q#10 - >AJO16038.1|FEATURES|OXA-366|beta-lactam|OXA	specific	442014	1	273	2.90174e-107	311.431	COG2602	YbxI	 - 	cl43695
+Q#11 - >AIT76104.1|FEATURES|MIR-15|beta-lactam|MIR	superfamily	480360	1	381	0	660.698	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#12 - >AIL92326.1|FEATURES|CARB-17|beta-lactam|CARB	superfamily	473882	24	280	3.84946e-85	256.319	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#13 - >BAJ10053.1|FEATURES|FosC2|fosfomycin|FosC2	specific	319908	4	122	1.69015e-69	204.438	cd07244	FosA	 - 	cl14632
+Q#14 - >AFK08541.1|FEATURES|CMY-67|beta-lactam|CMX	specific	236894	1	381	0	635.779	PRK11289	ampC	 - 	cl21491
+Q#15 - >AFO53532.1|FEATURES|rgt1438|rifamycin|rgt1438	specific	340817	1	400	9.82301e-46	162.335	cd03784	GT1_Gtf-like	 - 	cl10013
+Q#16 - >AKR18015.1|FEATURES|PDC-75|beta-lactam|PDC	specific	236894	2	362	0	628.075	PRK11289	ampC	 - 	cl21491
+Q#17 - >AKR18020.1|FEATURES|PDC-80|beta-lactam|PDC	specific	236894	2	362	0	626.534	PRK11289	ampC	 - 	cl21491
+Q#18 - >AIA49384.1|FEATURES|Serratia_marcescens_Omp1|multidrug|Serratia_marcescens_Omp1	superfamily	473880	23	374	8.82928e-177	495.51	cl21487	OM_channels superfamily	 - 	 - 
+Q#19 - >ACK75961.1|FEATURES|QnrC|fluoroquinolone|QnrC	specific	440968	17	207	1.3027e-34	121.202	COG1357	YjbI	 - 	cl34238
+Q#20 - >BAM73613.1|FEATURES|TMB-2|beta-lactam|TMB-2	specific	293859	22	236	3.69806e-140	391.645	cd16301	IMP_DIM-like_MBL-B1	 - 	cl23716
+Q#21 - >CDO61516.1|FEATURES|efrB|multidrug|efrB	specific	440747	33	362	1.10946e-144	421.496	COG1132	MdlB	N	cl34129
+Q#22 - >ENU91137|FEATURES|ANT(3'')-IIb|aminoglycoside|ANT(3'')-IIb	superfamily	184296	19	254	4.89e-67	208.726	cl32927	PRK13746 superfamily	 - 	 - 
+Q#23 - >AGL43632.1|FEATURES|QnrB71|fluoroquinolone|QnrB71	superfamily	439496	9	213	3.01022e-103	296.985	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#24 - >AAY32951.1|FEATURES|lnuC|MLS|lnuC	superfamily	402373	2	63	0.000833918	38.0932	cl22941	Aminoglyc_resit superfamily	C	 - 
+Q#25 - >BAO79432.1|FEATURES|cmeC|multidrug|cmeC	superfamily	273830	11	468	1.80386e-77	250.021	cl36990	outer_NodT superfamily	 - 	 - 
+Q#26 - >ANZ79241.1|FEATURES|tetB(60)|tetracycline|tetB(60)	specific	440747	1	579	0	595.606	COG1132	MdlB	 - 	cl34129
+Q#27 - >AFG29918.1|FEATURES|OXA-231|beta-lactam|OXA	specific	442014	1	275	2.46326e-102	299.105	COG2602	YbxI	 - 	cl43695
+Q#28 - >CBL58181.1|FEATURES|apmA|aminoglycoside|apmA	specific	100040	94	250	6.95248e-42	140.757	cd03349	LbH_XAT	 - 	cl00160
+Q#29 - >AAZ04368.1|FEATURES|BEL-1|beta-lactam|BEL	specific	441934	15	281	1.54395e-76	234.022	COG2367	PenP	 - 	cl28588
+Q#30 - >BAA11237.1|FEATURES|emrY|tetracycline|emrY	superfamily	411083	10	508	0	689.148	cl41258	EmrB superfamily	 - 	 - 
+Q#31 - >AHL30287.1|FEATURES|OXA-389|beta-lactam|OXA	specific	442014	4	274	6.20221e-110	318.365	COG2602	YbxI	 - 	cl43695
+Q#32 - >AIT76095.1|FEATURES|OXA-398|beta-lactam|OXA	specific	442014	1	273	2.78613e-106	309.12	COG2602	YbxI	 - 	cl43695
+Q#33 - >ADQ43424.1|FEATURES|QnrB31|fluoroquinolone|QnrB31	superfamily	439496	21	225	9.77596e-103	296.215	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#34 - >AJA32744.1|FEATURES|OXA-426|beta-lactam|OXA	specific	442014	4	274	5.72358e-111	321.061	COG2602	YbxI	 - 	cl43695
+Q#35 - >NP_274719.1|FEATURES|mtrC|multidrug|mtrC	specific	440606	51	369	5.54341e-93	282.602	COG0845	AcrA	 - 	cl34052
+Q#36 - >AFH35853.1|FEATURES|Escherichia_coli_mdfA|multidrug|Escherichia_coli_mdfA	specific	185300	7	410	0	676.272	PRK15402	PRK15402	 - 	cl33139
+Q#37 - >ABU52984.1|FEATURES|QnrS3|fluoroquinolone|QnrS3	specific	440968	16	203	1.55821e-29	108.105	COG1357	YjbI	 - 	cl34238
+Q#38 - >APB03216.1|FEATURES|LlmA_23S_ribosomal_RNA_methyltransferase|MLS|LlmA_23S_ribosomal_RNA_methyltransferase	superfamily	440709	69	198	5.72013e-22	94.0927	cl34101	RlmK superfamily	NC	 - 
+Q#39 - >CAG25835.1|FEATURES|LEN-8|beta-lactam|LEN	superfamily	473882	1	263	0	516.713	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#40 - >NP_416715.1|FEATURES|YojI|peptide|YojI	specific	236707	1	547	0	1081.15	PRK10522	PRK10522	 - 	cl35925
+Q#41 - >ABA71733.1|FEATURES|vanTG|glycopeptide|vanTG	specific	143498	344	711	0	605.888	cd06825	PLPDE_III_VanT	 - 	cl00261
+Q#41 - >ABA71733.1|FEATURES|vanTG|glycopeptide|vanTG	specific	442505	1	332	9.40145e-32	126.641	COG3274	WecH	 - 	cl42266
+Q#42 - >AAA85213.1|FEATURES|dfrD|diaminopyrimidine|dfrD	specific	425512	2	160	2.09934e-83	242.45	pfam00186	DHFR_1	 - 	cl17279
+Q#43 - >AID67109.1|FEATURES|OXA-233|beta-lactam|OXA	specific	442014	1	264	1.28599e-113	327.224	COG2602	YbxI	 - 	cl43695
+Q#44 - >AKR18024.1|FEATURES|PDC-84|beta-lactam|PDC	specific	236894	2	362	0	621.912	PRK11289	ampC	 - 	cl21491
+Q#45 - >AKR18019.1|FEATURES|PDC-79|beta-lactam|PDC	specific	236894	2	362	0	626.534	PRK11289	ampC	 - 	cl21491
+Q#46 - >AAB97924.1|FEATURES|OXA-16|beta-lactam|OXA	specific	442014	2	255	8.72476e-114	327.224	COG2602	YbxI	 - 	cl43695
+Q#47 - >AFK73452.1|FEATURES|CMY-81|beta-lactam|CMX	specific	236894	1	381	0	634.623	PRK11289	ampC	 - 	cl21491
+Q#48 - >WP_063857804.1|FEATURES|ADC-44|beta-lactam|ADC-44	specific	236894	4	382	0	587.629	PRK11289	ampC	 - 	cl21491
+Q#49 - >AEM44651.1|FEATURES|CTX-M-108|beta-lactam|CTX-M	specific	441934	15	286	4.9333e-89	265.994	COG2367	PenP	 - 	cl28588
+Q#50 - >BAD63613.1|FEATURES|clbC|phenicol|clbC	specific	184685	4	349	0	676.463	PRK14453	PRK14453	 - 	cl18962
+Q#51 - >ABV26707.1|FEATURES|arr-5|rifamycin|arr-5	specific	432344	20	122	2.03188e-58	176.657	pfam12120	Arr-ms	 - 	cl13545
+Q#52 - >ACM50952.1|FEATURES|QnrB21|fluoroquinolone|QnrB21	superfamily	439496	9	213	4.02029e-101	291.592	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#53 - >AIT76115.1|FEATURES|MIR-13|beta-lactam|MIR	superfamily	480360	1	381	0	661.469	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#54 - >AAA74437.1|FEATURES|MexB|multidrug|mexB	specific	273335	1	1044	0	1970.33	TIGR00915	2A0602	 - 	cl47191
+Q#55 - >NP_460578.1|FEATURES|AAC(6')-Iaa|aminoglycoside|AAC(6')-Iaa	specific	411079	1	145	4.58324e-107	300.816	NF000140	AAC_6p_Salmo	 - 	cl40575
+Q#56 - >AKR18031.1|FEATURES|PDC-91|beta-lactam|PDC	specific	236894	1	358	0	622.682	PRK11289	ampC	 - 	cl21491
+Q#57 - >AET10445.1|FEATURES|tetB(46)|tetracycline|tetB(46)	specific	440747	1	578	0	550.537	COG1132	MdlB	 - 	cl34129
+Q#58 - >AFU25653.1|FEATURES|ACT-15|beta-lactam|ACT	superfamily	480360	1	381	0	666.476	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#59 - >WP_032055358.1|FEATURES|ADC-43|beta-lactam|ADC-43	specific	236894	4	382	0	598.414	PRK11289	ampC	 - 	cl21491
+Q#60 - >CAA03986.1|FEATURES|tap|tetracycline|tap	specific	162098	9	375	8.0759e-102	306.555	TIGR00900	2A0121	 - 	cl31440
+Q#61 - >AAF34336.1|FEATURES|SHV-22|beta-lactam|SHV	superfamily	473882	1	260	0	506.698	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#62 - >AGL43626.1|FEATURES|QnrB65|fluoroquinolone|QnrB65	superfamily	439496	9	213	9.54775e-101	290.822	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#63 - >AKR18025.1|FEATURES|PDC-85|beta-lactam|PDC	specific	236894	2	362	0	628.075	PRK11289	ampC	 - 	cl21491
+Q#64 - >AAD45935.1|FEATURES|TEM-59|beta-lactam|TEM	specific	185339	3	277	0	582.197	PRK15442	PRK15442	 - 	cl21491
+Q#65 - >AAX99225|FEATURES|Moraxella_catarrhalis_M35|beta-lactam|Moraxella_catarrhalis_M35	specific	442436	19	358	8.5502e-37	135.516	COG3203	OmpC	 - 	cl41868
+Q#66 - >WP_001159760.1|FEATURES|ADC-79|beta-lactam|ADC-79	specific	236894	4	382	0	606.118	PRK11289	ampC	 - 	cl21491
+Q#67 - >AAO33760.1|FEATURES|TEM-7|beta-lactam|TEM	specific	185339	1	261	0	556.389	PRK15442	PRK15442	 - 	cl21491
+Q#68 - >ABG65740.1|FEATURES|linG|MLS|linG	superfamily	465859	5	57	0.000208353	39.4322	cl38995	Polbeta superfamily	C	 - 
+Q#69 - >BAP68758.1|FEATURES|ACT-35|beta-lactam|ACT	superfamily	480360	1	381	0	667.632	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#70 - >CCJ32597.1|FEATURES|OXA-249|beta-lactam|OXA	specific	442014	4	274	3.60392e-109	316.439	COG2602	YbxI	 - 	cl43695
+Q#71 - >AJE60855.1|FEATURES|FosA5|fosfomycin|FosA5	specific	319908	4	128	2.13852e-71	209.446	cd07244	FosA	 - 	cl14632
+Q#72 - >AGZ55247.1|FEATURES|clbA|phenicol|clbA	superfamily	450244	1	347	0	651.425	cl18962	Radical_SAM superfamily	 - 	 - 
+Q#73 - >AID70696|FEATURES|Vibrio_cholerae_OmpU|peptide|Vibrio_cholerae_OmpU	specific	238208	41	351	6.94339e-35	130.184	cd00342	gram_neg_porins	 - 	cl21487
+Q#74 - >AJP77058|FEATURES|MSI-OXA|beta-lactam|OXA	specific	442014	18	272	7.90893e-121	345.714	COG2602	YbxI	 - 	cl43695
+Q#75 - >CDO61513.1|FEATURES|efrA|multidrug|efrA	specific	440747	1	469	0	547.071	COG1132	MdlB	 - 	cl34129
+Q#76 - >NP_358565.1|FEATURES|mefE|MLS|mefE	specific	340863	11	396	1.15659e-56	190.519	cd06173	MFS_MefA_like	 - 	cl28910
+Q#77 - >AKR18023.1|FEATURES|PDC-83|beta-lactam|PDC	specific	236894	2	362	0	623.838	PRK11289	ampC	 - 	cl21491
+Q#78 - >AIT76118.1|FEATURES|OXA-397|beta-lactam|OXA	specific	442014	1	277	3.99057e-110	319.135	COG2602	YbxI	 - 	cl43695
+Q#79 - >AHA11126.1|FEATURES|OXA-363|beta-lactam|OXA	specific	442014	1	272	1.13007e-109	317.594	COG2602	YbxI	 - 	cl43695
+Q#80 - >BAP34782.1|FEATURES|CTX-M-151|beta-lactam|CTX-M	specific	441934	31	299	1.00738e-83	253.282	COG2367	PenP	 - 	cl28588
+Q#81 - >NP_627787|FEATURES|vanJ|glycopeptide|vanJ	specific	442257	17	330	1.14216e-51	172.872	COG3021	YafD	 - 	cl43764
+Q#82 - >ADJ94120.1|FEATURES|GES-16|beta-lactam|GES	specific	441934	1	278	1.49903e-79	242.111	COG2367	PenP	 - 	cl28588
+Q#83 - >AGU01679.2|FEATURES|Rm3|beta-lactam|Rm3	specific	293869	41	296	0	524.166	cd16311	THIN-B2-like_MBL-B3	 - 	cl23716
+Q#84 - >AKL79742.1|FEATURES|carO|beta-lactam|carO	specific	411651	1	242	5.12598e-149	415.167	NF038067	OMP_CarO	 - 	cl41640
+Q#85 - >CEA29750.1|FEATURES|SHV-187|beta-lactam|SHV	specific	185339	4	286	0	562.167	PRK15442	PRK15442	 - 	cl21491
+Q#86 - >ANP63073.1|FEATURES|mphD|MLS|mphD	specific	270701	8	279	5.88812e-134	380.437	cd05152	MPH2'	 - 	cl21453
+Q#87 - >BAD59497.1|FEATURES|rpoB2|multidrug|rpoB2	specific	234749	24	1124	0	2153.29	PRK00405	rpoB	 - 	cl47023
+Q#88 - >ACH58998.1|FEATURES|LRA-7|beta-lactam|LRA	superfamily	451500	37	295	3.45804e-99	291.681	cl23716	metallo-hydrolase-like_MBL-fold superfamily	 - 	 - 
+Q#89 - >AAF63432|FEATURES|vatF|MLS|vatF	specific	100040	34	192	1.26688e-71	214.33	cd03349	LbH_XAT	 - 	cl00160
+Q#90 - >ABG49324.1|FEATURES|aadA9|aminoglycoside|aadA9	specific	184296	22	283	2.11176e-176	487.61	PRK13746	PRK13746	 - 	cl32927
+Q#91 - >AAR20596.1|FEATURES|Bla2|beta-lactam|Bla2	specific	293862	45	246	7.83489e-117	333.097	cd16304	BcII-like_MBL-B1	 - 	cl23716
+Q#92 - >NP_417169.1|FEATURES|emrR|fluoroquinolone|emrR	specific	182795	1	176	1.13758e-125	350.587	PRK10870	PRK10870	 - 	cl46859
+Q#93 - >AAG03357.1|FEATURES|ErmX|MLS|ErmX	specific	439801	4	215	5.28784e-64	200.737	COG0030	RsmA	 - 	cl42997
+Q#94 - >AAC36944.1|FEATURES|blt|multidrug|blt	specific	340883	15	390	6.12941e-68	219.37	cd17325	MFS_MdtG_SLC18_like	 - 	cl28910
+Q#95 - >AFU25739.1|FEATURES|GES-22|beta-lactam|GES	specific	441934	1	278	1.01344e-79	242.496	COG2367	PenP	 - 	cl28588
+Q#96 - >AAC75137.1|FEATURES|mdtC|aminocoumarin|mdtC	specific	182589	1	1025	0	2117.86	PRK10614	PRK10614	 - 	cl47191
+Q#97 - >AIL54055.1|FEATURES|CTX-M-115|beta-lactam|CTX-M	specific	441934	14	287	3.61987e-94	279.476	COG2367	PenP	 - 	cl28588
+Q#98 - >EPF73263|FEATURES|APH(3')-VIII|aminoglycoside|APH(3')-VIII	specific	270699	15	258	3.0253e-64	200.886	cd05150	APH	 - 	cl21453
+Q#99 - >AFK24647.1|FEATURES|VIM-31|beta-lactam|VIM	specific	293861	42	259	1.70945e-149	416.184	cd16303	VIM_type_MBL-B1	 - 	cl23716
+Q#100 - >ANZ79240.1|FEATURES|tetA(60)|tetracycline|tetA(60)	specific	440747	4	576	0	542.063	COG1132	MdlB	 - 	cl34129
+Q#101 - >AHL39324.1|FEATURES|CMY-82|beta-lactam|CMX	specific	236894	1	381	0	642.712	PRK11289	ampC	 - 	cl21491
+Q#102 - >AIT76103.1|FEATURES|DHA-17|beta-lactam|DHA	specific	236894	1	379	0	571.065	PRK11289	ampC	 - 	cl21491
+Q#103 - >AIT76117.1|FEATURES|MIR-14|beta-lactam|MIR	superfamily	480360	1	381	0	668.017	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#104 - >AKF16168|FEATURES|MCR-1|peptide|MCR-1	specific	441797	10	529	0	617.253	COG2194	OpgE	 - 	cl43638
+Q#105 - >ABF66027.1|FEATURES|lmrD|MLS|lmrD	specific	440747	9	660	0	570.568	COG1132	MdlB	 - 	cl34129
+Q#106 - >WP_001211203.1|FEATURES|ADC-74|beta-lactam|ADC-74	specific	236894	4	382	0	599.955	PRK11289	ampC	 - 	cl21491
+Q#107 - >CAH14033.1|FEATURES|LpeB|MLS|LpeB	superfamily	481531	4	997	0	1362.39	cl47191	ACR_tran superfamily	 - 	 - 
+Q#108 - >ANR95875.1|FEATURES|MCR-1.2|peptide|MCR-1.2	specific	441797	10	529	0	616.483	COG2194	OpgE	 - 	cl43638
+Q#109 - >AHV80711.1|FEATURES|dfrA8|diaminopyrimidine|dfrA8	specific	238127	4	163	4.73481e-49	155.374	cd00209	DHFR	 - 	cl17279
+Q#110 - >AGI04227.1|FEATURES|APH(3')-VI|aminoglycoside|APH(3')-VI	specific	270699	14	258	4.75337e-76	230.931	cd05150	APH	 - 	cl21453
+Q#111 - >WP_004714775.1|FEATURES|ADC-1|beta-lactam|ADC-1	specific	236894	4	382	0	596.488	PRK11289	ampC	 - 	cl21491
+Q#112 - >AHC31001.1|FEATURES|OXA-246|beta-lactam|OXA	specific	442014	1	264	1.15383e-115	332.617	COG2602	YbxI	 - 	cl43695
+Q#113 - >AJT57878.1|FEATURES|OXA-435|beta-lactam|OXA	specific	442014	1	273	2.05178e-106	309.505	COG2602	YbxI	 - 	cl43695
+Q#114 - >WP_063857801.1|FEATURES|ADC-4|beta-lactam|ADC-4	specific	236894	4	382	0	597.644	PRK11289	ampC	 - 	cl21491
+Q#115 - >AUW34359.1|FEATURES|RSA-2|beta-lactam|RSA-2	specific	442014	1	283	1.65918e-90	269.445	COG2602	YbxI	 - 	cl43695
+Q#116 - >AFU25635.1|FEATURES|CMY-70|beta-lactam|CMX	specific	236894	1	381	0	643.483	PRK11289	ampC	 - 	cl21491
+Q#117 - >AHH86051.1|FEATURES|EdeQ|polyamine:peptide|EdeQ	specific	441276	3	132	1.80506e-17	74.2651	COG1670	RimL	 - 	cl34333
+Q#118 - >AIT76092.1|FEATURES|CMY-115|beta-lactam|CMX	specific	236894	1	381	0	637.32	PRK11289	ampC	 - 	cl21491
+Q#119 - >AAZ04784.1|FEATURES|QnrA5|fluoroquinolone|QnrA5	specific	440968	12	207	1.04073e-35	123.898	COG1357	YjbI	 - 	cl34238
+Q#120 - >CAA09666.1|FEATURES|Klebsiella_pneumoniae_OmpK37|beta-lactam|Klebsiella_pneumoniae_OmpK37	superfamily	473880	23	374	1.32665e-172	484.725	cl21487	OM_channels superfamily	 - 	 - 
+Q#121 - >AIT76112.1|FEATURES|MIR-11|beta-lactam|MIR	superfamily	480360	1	381	0	663.395	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#122 - >YP_001693238|FEATURES|oqxB|multidrug|oqxB	specific	440603	1	1041	0	1102.08	COG0841	AcrB	 - 	cl34050
+Q#123 - >BAE77933.1|FEATURES|CRP|multidrug|CRP	specific	236969	1	210	6.29696e-167	457.521	PRK11753	PRK11753	 - 	cl36052
+Q#124 - >AHL39336.1|FEATURES|ACT-24|beta-lactam|ACT	superfamily	480360	1	381	0	676.492	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#125 - >AIT76089.1|FEATURES|CMY-113|beta-lactam|CMX	specific	236894	1	381	0	637.705	PRK11289	ampC	 - 	cl21491
+Q#126 - >NP_417544.5|FEATURES|patA|fluoroquinolone|patA	specific	183175	1	459	0	960.737	PRK11522	PRK11522	 - 	cl18945
+Q#127 - >AGS82586.1|FEATURES|VIM-39|beta-lactam|VIM	specific	293861	42	259	7.92522e-146	406.939	cd16303	VIM_type_MBL-B1	 - 	cl23716
+Q#128 - >AFY16910.1|FEATURES|QnrB62|fluoroquinolone|QnrB62	superfamily	439496	21	225	8.95621e-103	296.215	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#129 - >AHL39338.1|FEATURES|ACT-25|beta-lactam|ACT	superfamily	480360	1	381	0	667.632	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#130 - >WP_057691006.1|FEATURES|ADC-78|beta-lactam|ADC-78	specific	236894	4	382	0	599.57	PRK11289	ampC	 - 	cl21491
+Q#131 - >CBL80435.1|FEATURES|dfrK|diaminopyrimidine|dfrK	specific	425512	2	160	1.69768e-83	242.45	pfam00186	DHFR_1	 - 	cl17279
+Q#132 - >AJP77080|FEATURES|SPG-1|beta-lactam|SPG-1	superfamily	451500	30	275	4.18888e-110	318.659	cl23716	metallo-hydrolase-like_MBL-fold superfamily	 - 	 - 
+Q#133 - >NP_052129.1|FEATURES|TEM-116|beta-lactam|TEM	specific	185339	3	286	0	605.309	PRK15442	PRK15442	 - 	cl21491
+Q#134 - >AFC95894.1|FEATURES|OXA-199|beta-lactam|OXA	specific	442014	1	265	2.16116e-140	395.02	COG2602	YbxI	 - 	cl43695
+Q#135 - >AEQ94272.1|FEATURES|QnrB42|fluoroquinolone|QnrB42	superfamily	439496	9	213	1.0085e-100	290.437	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#136 - >WP_029424536.1|FEATURES|ADC-80|beta-lactam|ADC-80	specific	236894	4	382	0	600.726	PRK11289	ampC	 - 	cl21491
+Q#137 - >APB03218.1|FEATURES|BahA|peptide|BahA	specific	443342	262	531	2.46265e-20	92.8629	COG4188	COG4188	 - 	cl44024
+Q#137 - >APB03218.1|FEATURES|BahA|peptide|BahA	superfamily	480658	73	172	4.25015e-05	44.496	cl46318	DUF4149 superfamily	N	 - 
+Q#138 - >AEM62764.1|FEATURES|QnrVC5|fluoroquinolone|QnrVC5	specific	440968	17	199	6.24867e-34	119.276	COG1357	YjbI	 - 	cl34238
+Q#139 - >ABF66011.1|FEATURES|lmrC|MLS|lmrC	specific	440747	1	571	0	557.086	COG1132	MdlB	 - 	cl34129
+Q#140 - >AAP93847.1|FEATURES|LEN-14|beta-lactam|LEN	superfamily	473882	1	152	2.94037e-105	301.772	cl21491	Transpeptidase superfamily	C	 - 
+Q#141 - >NP_415222.1|FEATURES|kdpE|aminoglycoside|kdpE	specific	182522	1	224	8.44662e-170	466.203	PRK10529	PRK10529	 - 	cl32528
+Q#142 - >AEZ49855.1|FEATURES|CMY-68|beta-lactam|CMX	specific	236894	1	381	0	636.934	PRK11289	ampC	 - 	cl21491
+Q#143 - >ANZ79476.1|FEATURES|Erm(47)|MLS|Erm(47)	specific	128898	19	178	7.09235e-58	181.555	smart00650	rADc	 - 	cl17173
+Q#144 - >CAG25831.1|FEATURES|OKP-B-12|beta-lactam|OKP-B-12	superfamily	473882	2	263	0	502.461	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#145 - >AIT76096.1|FEATURES|ACT-31|beta-lactam|ACT	superfamily	480360	1	381	0	669.173	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#146 - >NP_416340.1|FEATURES|mgrB|multidrug|mgrB	specific	182364	1	47	7.60908e-20	72.8869	PRK10299	PRK10299	 - 	cl26058
+Q#147 - >AFK93491.1|FEATURES|SHV-144|beta-lactam|SHV	specific	185339	1	284	0	564.478	PRK15442	PRK15442	 - 	cl21491
+Q#148 - >AMP35312.1|FEATURES|vgaC|MLS|vgaC	specific	439718	4	75	2.2807e-28	96.414	NF040493	TA_anti_VapB	 - 	cl00877
+Q#149 - >ACX70402.1|FEATURES|OXA-143|beta-lactam|OXA	specific	442014	1	275	1.198e-102	299.875	COG2602	YbxI	 - 	cl43695
+Q#150 - >BAD95494.1|FEATURES|SAT-2|nucleoside|SAT-2	specific	395465	39	140	8.9027e-18	74.4764	pfam00583	Acetyltransf_1	 - 	cl17182
+Q#151 - >CAG25814.1|FEATURES|LEN-13|beta-lactam|LEN	specific	185339	1	263	0	520.565	PRK15442	PRK15442	 - 	cl21491
+Q#152 - >AAZ42322.1|FEATURES|qacH|fluoroquinolone|qacH	specific	441679	3	106	1.30728e-32	109.802	COG2076	EmrE	 - 	cl43598
+Q#153 - >WP_015892743.1|FEATURES|clbB|phenicol|clbB	specific	275225	2	342	0	706.493	TIGR04432	rSAM_Cfr	 - 	cl18962
+Q#154 - >AAC43550.1|FEATURES|lrfA|fluoroquinolone|lrfA	specific	411458	1	504	0	686.252	NF033896	MFS_LfrA	 - 	cl41506
+Q#155 - >BAO79518.1|FEATURES|FosK|fosfomycin|FosK	superfamily	472697	4	123	5.47284e-67	198.275	cl14632	VOC superfamily	 - 	 - 
+Q#156 - >AAK26252.2|FEATURES|AAC(6')-29a|aminoglycoside|AAC(6')-29a	specific	442387	3	111	1.55716e-08	49.6986	COG3153	yhbS	C	cl43796
+Q#157 - >NP_252897.1|FEATURES|OpmD|multidrug|OpmD	superfamily	273830	15	466	7.06237e-78	250.792	cl36990	outer_NodT superfamily	 - 	 - 
+Q#158 - >ACD35503.1|FEATURES|tet(42)|tetracycline|tet(42)	superfamily	475125	17	399	1.30609e-68	222.511	cl28910	MFS superfamily	 - 	 - 
+Q#159 - >ASF81896.1|FEATURES|MCR-3|peptide|MCR-3	specific	441797	2	539	0	784.045	COG2194	OpgE	 - 	cl43638
+Q#160 - >AEG74319.1|FEATURES|QnrS5|fluoroquinolone|QnrS5	specific	440968	17	207	5.60708e-28	104.253	COG1357	YjbI	 - 	cl34238
+Q#161 - >AGE45503.1|FEATURES|FOX-10|beta-lactam|FOX	specific	236894	23	381	0	597.644	PRK11289	ampC	 - 	cl21491
+Q#162 - >WP_025712239|FEATURES|LEN-26|beta-lactam|LEN	specific	185339	1	284	0	553.693	PRK15442	PRK15442	 - 	cl21491
+Q#163 - >AGK07369.1|FEATURES|OXA-255|beta-lactam|OXA	specific	442014	1	275	6.52155e-101	295.638	COG2602	YbxI	 - 	cl43695
+Q#164 - >AEZ49849.1|FEATURES|CMY-66|beta-lactam|CMX	specific	236894	1	381	0	634.238	PRK11289	ampC	 - 	cl21491
+Q#165 - >BAD89844.2|FEATURES|abeM|multidrug|abeM	specific	240536	10	444	6.90198e-158	453.494	cd13131	MATE_NorM_like	 - 	cl09326
+Q#166 - >AIY30332.1|FEATURES|OXA-423|beta-lactam|OXA	specific	442014	1	273	9.57671e-106	307.579	COG2602	YbxI	 - 	cl43695
+Q#167 - >NP_248846.1|FEATURES|TriA|triclosan|TriA	specific	440606	47	368	7.29089e-84	258.335	COG0845	AcrA	 - 	cl34052
+Q#168 - >AJO16045.1|FEATURES|TEM-215|beta-lactam|TEM	specific	185339	3	286	0	607.235	PRK15442	PRK15442	 - 	cl21491
+Q#169 - >APB03225.1|FEATURES|vgbC|MLS|vgbC	specific	443399	6	264	2.81164e-88	264.189	COG4257	Vgb	 - 	cl26743
+Q#170 - >EGP45231.1|FEATURES|AxyY|multidrug|AxyY	superfamily	169981	1	1032	0	1778.24	cl31597	PRK09577 superfamily	 - 	 - 
+Q#171 - >WP_063857796.1|FEATURES|ADC-22|beta-lactam|ADC-22	specific	236894	4	382	0	594.177	PRK11289	ampC	 - 	cl21491
+Q#172 - >AEL31271.1|FEATURES|QnrB40|fluoroquinolone|QnrB40	superfamily	439496	14	218	8.44057e-101	291.207	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#173 - >AEA37904.1|FEATURES|lsaC|MLS|lsaC	superfamily	440254	6	492	1.94546e-85	272.324	cl33905	Uup superfamily	 - 	 - 
+Q#174 - >ADI55014.1|FEATURES|QnrVC4|fluoroquinolone|QnrVC4	specific	440968	17	199	5.92536e-33	116.964	COG1357	YjbI	 - 	cl34238
+Q#175 - >AGL43625.1|FEATURES|QnrB64|fluoroquinolone|QnrB64	superfamily	439496	9	213	1.50071e-101	292.748	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#176 - >AHF20043.1|FEATURES|QnrS9|fluoroquinolone|QnrS9	specific	440968	17	204	1.15078e-28	105.794	COG1357	YjbI	 - 	cl34238
+Q#177 - >AHL39327.1|FEATURES|CMY-86|beta-lactam|CMX	specific	236894	1	381	0	633.468	PRK11289	ampC	 - 	cl21491
+Q#178 - >BAA32493.1|FEATURES|FomA|fosfomycin|FomA	specific	239774	5	260	1.04373e-75	230.611	cd04241	AAK_FomA-like	 - 	cl00452
+Q#179 - >ENV34035|FEATURES|APH(3')-IX|aminoglycoside|APH(3')-IX	specific	270699	22	265	2.61045e-56	180.855	cd05150	APH	 - 	cl21453
+Q#180 - >AMP42492.1|FEATURES|tet(59)|tetracycline|tet(59)	specific	340946	6	384	2.30883e-156	445.927	cd17388	MFS_TetA	 - 	cl28910
+Q#181 - >ABX72227.1|FEATURES|QnrB15|fluoroquinolone|QnrB15	superfamily	439496	21	225	3.67644e-102	294.674	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#182 - >CAA52372.1|FEATURES|APH(4)-Ib|aminoglycoside|APH(4)-Ib	superfamily	439391	193	420	6.71632e-136	388.662	cl41256	glpA_Cterm superfamily	 - 	 - 
+Q#182 - >CAA52372.1|FEATURES|APH(4)-Ib|aminoglycoside|APH(4)-Ib	superfamily	439391	1	228	1.1123e-134	385.58	cl41256	glpA_Cterm superfamily	 - 	 - 
+Q#183 - >NP_249820.1|FEATURES|FosA|fosfomycin|FosA	specific	319908	4	125	6.87427e-70	205.594	cd07244	FosA	 - 	cl14632
+Q#184 - >AFK08538.1|FEATURES|CMY-71|beta-lactam|CMX	specific	236894	1	381	0	631.927	PRK11289	ampC	 - 	cl21491
+Q#185 - >AAC36883.1|FEATURES|TEM-26|beta-lactam|TEM	specific	185339	3	269	0	567.175	PRK15442	PRK15442	 - 	cl21491
+Q#186 - >AEZ49857.1|FEATURES|VIM-32|beta-lactam|VIM	specific	293861	42	259	1.11327e-145	406.554	cd16303	VIM_type_MBL-B1	 - 	cl23716
+Q#187 - >WP_001211223.1|FEATURES|ADC-31|beta-lactam|ADC-31	specific	236894	4	382	0	597.644	PRK11289	ampC	 - 	cl21491
+Q#188 - >YP_355256.1|FEATURES|Rhodobacter_sphaeroides_ampC_beta-lactamase|beta-lactam|Rhodobacter_sphaeroides_ampC_beta-lactamase	specific	236894	1	378	0	542.561	PRK11289	ampC	 - 	cl21491
+Q#189 - >CAA44667.1|FEATURES|ErmU|MLS|ErmU	specific	439801	8	247	1.52432e-56	182.632	COG0030	RsmA	 - 	cl42997
+Q#190 - >WP_002118772.1|FEATURES|ADC-18|beta-lactam|ADC-18	specific	236894	4	382	0	590.71	PRK11289	ampC	 - 	cl21491
+Q#191 - >ABX54690.1|FEATURES|vanTrL|glycopeptide|vanTrL	superfamily	469695	7	361	3.67766e-156	443.334	cl00261	PLPDE_III superfamily	 - 	 - 
+Q#192 - >AAC09012.1|FEATURES|CARB-4|beta-lactam|CARB	superfamily	473882	4	281	3.72181e-80	243.992	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#193 - >CEA29751.1|FEATURES|SHV-188|beta-lactam|SHV	specific	185339	4	288	0	557.545	PRK15442	PRK15442	 - 	cl21491
+Q#194 - >WP_001211237.1|FEATURES|ADC-76|beta-lactam|ADC-76	specific	236894	4	382	0	599.955	PRK11289	ampC	 - 	cl21491
+Q#195 - >APB03214.1|FEATURES|tetA(48)|tetracycline|tetA(48)	superfamily	130256	25	321	5.48345e-125	360.552	cl31072	drrA superfamily	 - 	 - 
+Q#196 - >AIT76109.1|FEATURES|DHA-22|beta-lactam|DHA	specific	236894	1	379	0	568.754	PRK11289	ampC	 - 	cl21491
+Q#197 - >AAC43969.1|FEATURES|opcM|multidrug|opcM	superfamily	273830	32	489	1.51517e-85	271.593	cl36990	outer_NodT superfamily	 - 	 - 
+Q#198 - >BAR45714.1|FEATURES|OXA-454|beta-lactam|OXA	specific	442014	1	264	4.14841e-115	331.076	COG2602	YbxI	 - 	cl43695
+Q#199 - >NP_415434.1|FEATURES|msbA|nitroimidazole|msbA	specific	183016	1	582	0	1297.68	PRK11176	PRK11176	 - 	cl32653
+Q#200 - >CCP46065.1|FEATURES|mtrA|multidrug|mtrA	specific	468653	8	226	2.08464e-145	404.25	NF040689	MtrAB_MtrA	 - 	cl48949
+Q#201 - >AAL26797.1|FEATURES|HERA-1|beta-lactam|HERA-1	superfamily	473882	13	285	2.58103e-93	277.505	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#202 - >AIW68620.1|FEATURES|TEM-220|beta-lactam|TEM	specific	185339	3	286	0	606.465	PRK15442	PRK15442	 - 	cl21491
+Q#203 - >AIS39742.1|FEATURES|TEM-219|beta-lactam|TEM	specific	185339	3	286	0	606.465	PRK15442	PRK15442	 - 	cl21491
+Q#204 - >ACV32633.1|FEATURES|SHV-123|beta-lactam|SHV	specific	185339	1	271	0	527.114	PRK15442	PRK15442	 - 	cl21491
+Q#205 - >BAC61820.1|FEATURES|CARB-22|beta-lactam|CARB	superfamily	473882	24	280	1.46898e-86	260.171	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#206 - >APB03220.1|FEATURES|VatI|MLS|VatI	specific	100040	29	183	3.59934e-70	210.478	cd03349	LbH_XAT	 - 	cl00160
+Q#207 - >AAA25053.1|FEATURES|TEM-12|beta-lactam|TEM	specific	185339	3	286	0	605.309	PRK15442	PRK15442	 - 	cl21491
+Q#208 - >AAS13767.1|FEATURES|Mrx|MLS|Mrx	specific	340863	12	391	6.32255e-27	110.783	cd06173	MFS_MefA_like	 - 	cl28910
+Q#209 - >AKN19287.1|FEATURES|AAC(6')-Ib7|aminoglycoside|AAC(6')-Ib7	specific	275224	78	261	4.3506e-146	406.192	TIGR04431	N6_acetyl_AAC6	 - 	cl29112
+Q#210 - >ADM92606.1|FEATURES|adeS|multidrug|adeS	specific	411090	2	355	0	709.07	NF012226	AdeS_HK	 - 	cl41264
+Q#211 - >AAA26793|FEATURES|oleC|MLS|oleC	specific	130256	8	307	1.32636e-158	445.296	TIGR01188	drrA	 - 	cl31072
+Q#212 - >AJG06170.1|FEATURES|ACT-36|beta-lactam|ACT	superfamily	480360	1	381	0	673.025	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#213 - >AHL39330.1|FEATURES|CMY-105|beta-lactam|CMX	specific	236894	1	381	0	639.631	PRK11289	ampC	 - 	cl21491
+Q#214 - >YP_003283625.1|FEATURES|tet(K)|tetracycline|tet(K)	specific	340879	19	451	1.48453e-41	151.557	cd17321	MFS_MMR_MDR_like	 - 	cl28910
+Q#215 - >AGT37351.1|FEATURES|NDM-10|beta-lactam|NDM	superfamily	451500	49	267	4.19369e-124	352.2	cl23716	metallo-hydrolase-like_MBL-fold superfamily	 - 	 - 
+Q#216 - >AFK31666.1|FEATURES|tet(40)|tetracycline|tet(40)	specific	349949	12	378	9.19061e-17	81.3189	cd06174	MFS	 - 	cl28910
+Q#217 - >AGL43631.1|FEATURES|QnrB70|fluoroquinolone|QnrB70	superfamily	439496	9	213	2.74932e-102	294.674	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#218 - >BAA15934.1|FEATURES|baeS|multidrug|baeS	specific	182539	1	467	0	964.48	PRK10549	PRK10549	 - 	cl32532
+Q#219 - >AKR18028.1|FEATURES|PDC-88|beta-lactam|PDC	specific	236894	1	360	0	626.919	PRK11289	ampC	 - 	cl21491
+Q#220 - >ASR73329.1|FEATURES|MCR-4|peptide|MCR-4	specific	441797	2	540	0	739.747	COG2194	OpgE	 - 	cl43638
+Q#221 - >ADK92148.1|FEATURES|OXA-182|beta-lactam|OXA	specific	442014	1	275	6.80167e-102	297.949	COG2602	YbxI	 - 	cl43695
+Q#222 - >ACV32637.1|FEATURES|SHV-127|beta-lactam|SHV	specific	185339	1	271	0	529.425	PRK15442	PRK15442	 - 	cl21491
+Q#223 - >NP_251218.1|FEATURES|MuxA|multidrug|MuxA	superfamily	183194	11	419	1.272e-137	400.32	cl32702	PRK11556 superfamily	 - 	 - 
+Q#224 - >AAC75314.1|FEATURES|PmrF|peptide|PmrF	specific	182669	3	321	0	675.298	PRK10714	PRK10714	 - 	cl32562
+Q#226 - >AGU91756.1|FEATURES|NDM-9|beta-lactam|NDM	specific	293858	49	267	2.56831e-125	355.282	cd16300	NDM_FIM-like_MBL-B1	 - 	cl23716
+Q#227 - >AFD54601.1|FEATURES|QnrB49|fluoroquinolone|QnrB49	superfamily	439496	21	225	1.17318e-101	293.518	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#228 - >AAX84553.1|FEATURES|dfrA2d|diaminopyrimidine|dfrA2d	specific	368910	1	78	2.40822e-54	162.522	pfam06442	DHFR_2	 - 	cl05774
+Q#229 - >CBH19182.1|FEATURES|CMY-46|beta-lactam|CMX	specific	236894	1	381	0	637.32	PRK11289	ampC	 - 	cl21491
+Q#230 - >NP_273368.1|FEATURES|farB|antibacterial_free_fatty_acids|farB	superfamily	411083	5	500	0	671.429	cl41258	EmrB superfamily	 - 	 - 
+Q#231 - >WP_020835015.1|FEATURES|CARB-20|beta-lactam|CARB	superfamily	473882	24	280	4.7857e-85	256.319	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#232 - >AGH19769.1|FEATURES|rmtH|aminoglycoside|rmtH	superfamily	473071	13	228	6.99545e-40	138.127	cl17173	AdoMet_MTases superfamily	 - 	 - 
+Q#233 - >AAR96051.1|FEATURES|otrC|tetracycline|otrC	specific	411078	1	351	0	686.083	NF000106	40850658_otr	 - 	cl41254
+Q#234 - >BAM46120.1|FEATURES|AAC(6')-Iaj|aminoglycoside|AAC(6')-Iaj	specific	440859	59	182	3.43664e-15	68.4799	COG1246	ArgA	N	cl43364
+Q#235 - >CAE00499.1|FEATURES|cdeA|multidrug|cdeA	specific	240548	14	433	1.94052e-110	331.782	cd13143	MATE_MepA_like	 - 	cl09326
+Q#236 - >WP_010550189.1|FEATURES|mphE|MLS|mphE	specific	270701	37	308	8.56037e-113	328.05	cd05152	MPH2'	 - 	cl21453
+Q#237 - >AFH36330.1|FEATURES|OXA-235|beta-lactam|OXA	specific	442014	39	272	2.58903e-101	296.409	COG2602	YbxI	 - 	cl43695
+Q#238 - >AGL43629.1|FEATURES|QnrB68|fluoroquinolone|QnrB68	superfamily	439496	9	213	2.2575e-102	294.674	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#239 - >BAE06006.1|FEATURES|mexN|multidrug|mexN	specific	411236	8	1016	0	1379.72	NF033617	RND_permease_2	 - 	cl47191
+Q#240 - >AFA52643.1|FEATURES|QnrB43|fluoroquinolone|QnrB43	superfamily	439496	21	225	3.44273e-102	294.674	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#241 - >AIS67612.1|FEATURES|CTX-M-156|beta-lactam|CTX-M	specific	441934	16	291	8.7066e-92	273.312	COG2367	PenP	 - 	cl28588
+Q#242 - >AJD73064.1|FEATURES|RlmA(II)|MLS|RlmA(II)	superfamily	473071	18	252	3.3554e-60	192.049	cl17173	AdoMet_MTases superfamily	 - 	 - 
+Q#243 - >BAE06005.1|FEATURES|mexM|multidrug|mexM	superfamily	183194	45	380	1.39927e-85	265.885	cl32702	PRK11556 superfamily	 - 	 - 
+Q#244 - >YP_489794.1|FEATURES|marA|multidrug|marA	specific	236920	1	127	2.82674e-84	241.93	PRK11511	PRK11511	 - 	cl36027
+Q#245 - >AFR46590.1|FEATURES|QnrB59|fluoroquinolone|QnrB59	superfamily	439496	21	225	2.38985e-101	292.748	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#246 - >ABS30107.1|FEATURES|QnrB11|fluoroquinolone|QnrB11	superfamily	439496	10	214	6.3145e-100	288.511	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#247 - >ADB28891.1|FEATURES|OXA-160|beta-lactam|OXA	specific	442014	1	275	6.60213e-100	292.942	COG2602	YbxI	 - 	cl43695
+Q#248 - >WP_029728367.1|FEATURES|Chryseobacterium_meningosepticum_BlaB|beta-lactam|Chryseobacterium_meningosepticum_BlaB	specific	293874	28	241	3.48985e-140	391.827	cd16316	BlaB-like_MBL-B1	 - 	cl23716
+Q#249 - >AAN17791.1|FEATURES|BUT-1|beta-lactam|BUT-1	specific	236894	14	397	0	610.356	PRK11289	ampC	 - 	cl21491
+Q#250 - >ADR80609.1|FEATURES|SHV-122|beta-lactam|SHV	specific	185339	1	285	0	548.3	PRK15442	PRK15442	 - 	cl21491
+Q#251 - >AIT76088.1|FEATURES|ACT-32|beta-lactam|ACT	superfamily	480360	1	381	0	669.943	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#252 - >AAY53478.1|FEATURES|GOB-18|beta-lactam|GOB-18	specific	293866	31	284	2.63125e-172	476.577	cd16308	GOB1-like_MBL-B3	 - 	cl23716
+Q#253 - >AHM76777.1|FEATURES|ACT-18|beta-lactam|ACT	superfamily	480360	1	381	0	678.803	cl46020	ampC_Kaer superfamily	 - 	 - 
+Q#254 - >CAJ51085.1|FEATURES|mphC|MLS|mphC	specific	270701	8	283	3.87733e-150	421.653	cd05152	MPH2'	 - 	cl21453
+Q#255 - >AGQ93789.1|FEATURES|CARB-21|beta-lactam|CARB	superfamily	473882	51	307	2.48042e-84	255.548	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#256 - >CDN33427.1|FEATURES|SHV-183|beta-lactam|SHV	specific	185339	1	285	0	557.159	PRK15442	PRK15442	 - 	cl21491
+Q#257 - >BAL75272.1|FEATURES|BJP-1|beta-lactam|BJP-1	superfamily	451500	34	285	1.03616e-157	439.612	cl23716	metallo-hydrolase-like_MBL-fold superfamily	 - 	 - 
+Q#258 - >WP_063857800.1|FEATURES|ADC-39|beta-lactam|ADC-39	specific	236894	4	382	0	604.578	PRK11289	ampC	 - 	cl21491
+Q#259 - >AGC92784.1|FEATURES|DIM-1|beta-lactam|DIM-1	specific	293859	23	237	6.44015e-138	386.252	cd16301	IMP_DIM-like_MBL-B1	 - 	cl23716
+Q#260 - >AIT76106.1|FEATURES|DHA-15|beta-lactam|DHA	specific	236894	1	379	0	571.45	PRK11289	ampC	 - 	cl21491
+Q#261 - >CAA66659.1|FEATURES|TEM-42|beta-lactam|TEM	specific	185339	1	281	0	591.442	PRK15442	PRK15442	 - 	cl21491
+Q#262 - >AHA11125.1|FEATURES|OXA-362|beta-lactam|OXA	specific	442014	17	272	9.7117e-106	307.579	COG2602	YbxI	 - 	cl43695
+Q#263 - >ENU37733|FEATURES|ANT(3'')-IIc|aminoglycoside|ANT(3'')-IIc	superfamily	184296	6	250	7.74071e-69	212.963	cl32927	PRK13746 superfamily	 - 	 - 
+Q#264 - >NP_252244|FEATURES|arnA|peptide|arnA	specific	236156	4	654	0	1418.6	PRK08125	PRK08125	 - 	cl35644
+Q#265 - >WP_000420313.1|FEATURES|mel|MLS|mel	specific	440254	7	483	3.62261e-122	366.697	COG0488	Uup	 - 	cl33905
+Q#266 - >AFH88686.1|FEATURES|QnrB48|fluoroquinolone|QnrB48	superfamily	439496	9	213	1.2692e-100	290.437	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#267 - >AAD12162.1|FEATURES|tlrB_conferring_tylosin_resistance|MLS|tlrB_conferring_tylosin_resistance	superfamily	473071	10	247	1.0721e-34	126.179	cl17173	AdoMet_MTases superfamily	 - 	 - 
+Q#268 - >AFU25632.1|FEATURES|CMY-74|beta-lactam|CMX	specific	236894	1	381	0	644.253	PRK11289	ampC	 - 	cl21491
+Q#269 - >CAG25817.1|FEATURES|LEN-12|beta-lactam|LEN	specific	185339	1	263	0	522.106	PRK15442	PRK15442	 - 	cl21491
+Q#270 - >WP_063857787.1|FEATURES|ADC-12|beta-lactam|ADC-12	specific	236894	4	382	0	597.259	PRK11289	ampC	 - 	cl21491
+Q#271 - >WP_042027926.1|FEATURES|TRU-1|beta-lactam|TRU-1	specific	236894	23	381	0	588.784	PRK11289	ampC	 - 	cl21491
+Q#272 - >AHJ02283.1|FEATURES|CARB-23|beta-lactam|CARB	superfamily	473882	53	309	4.77074e-85	257.474	cl21491	Transpeptidase superfamily	 - 	 - 
+Q#273 - >AAK69828.1|FEATURES|SHV-32|beta-lactam|SHV	specific	185339	1	284	0	559.471	PRK15442	PRK15442	 - 	cl21491
+Q#274 - >AGV28567.1|FEATURES|adeN|multidrug|adeN	specific	440920	18	179	1.53893e-20	84.1796	COG1309	AcrR	 - 	cl43380
+Q#275 - >BAA03674.1|FEATURES|myrA|MLS|myrA	superfamily	473071	10	263	8.78253e-32	118.861	cl17173	AdoMet_MTases superfamily	 - 	 - 
+Q#276 - >ABX72044.1|FEATURES|QnrB14|fluoroquinolone|QnrB14	superfamily	439496	21	225	5.73691e-101	291.592	cl45666	penta_rpt_SmQnr superfamily	 - 	 - 
+Q#277 - >AAB53445.1|FEATURES|SAT-4|nucleoside|SAT-4	specific	395465	64	153	1.66873e-20	81.7952	pfam00583	Acetyltransf_1	N	cl17182
+Q#278 - >WP_000572405.1|FEATURES|APH(3')-IIa|aminoglycoside|APH(3')-IIa	specific	442463	8	264	1.3492e-124	354.606	COG3231	Aph	 - 	cl43814
+Q#279 - >AGC50805.1|FEATURES|VIM-35|beta-lactam|VIM	specific	293861	42	259	3.8864e-146	407.71	cd16303	VIM_type_MBL-B1	 - 	cl23716
