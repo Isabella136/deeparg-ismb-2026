@@ -255,7 +255,10 @@ class QueryVector:
 
         self.deeparg_class = query.get_top_deeparg_classification(False)
         self.diamond_class = query.get_top_diamond_classification()
-        self.most_freq_class = self.label_count.groupby(by=["amr"])["count"].sum().idxmax()
+        self.most_freq_class = (
+            self.label_count.groupby(by=["amr"])["count"].sum().idxmax()
+            if self.label_count.groupby(by=["amr"])["count"].sum().max() > self.label_count.loc[
+                self.label_count["amr"]==self.deeparg_class]["count"].sum() else self.deeparg_class)
 
         self.diamond_labels = query.get_top_diamond_alignment_grouping()
 

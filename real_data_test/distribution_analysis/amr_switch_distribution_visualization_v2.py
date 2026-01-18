@@ -193,17 +193,16 @@ def make_heatmap_df(
         extra_label: str|None = None) -> tuple[pd.DataFrame]:
     
     # Must get the queries of interest:
-    if label_is_amr:
-        if not most_freq:
+    if label_is_amr and not most_freq:
             pair_label_df = (label_df
                 .loc[label_df["Is Diamond Best-Hit Class"] != label_df["Is DeepARG Class"]]
                 [["Sample ID", "Alignment Identity", "Model", "Query", "Diamond Class", "DeepARG Class"]]
                 .drop_duplicates())
-        else:
-            pair_label_df = (label_df
-                .loc[label_df["Is Most Frequent Class"] != label_df["Is DeepARG Class"]]
-                [["Sample ID", "Alignment Identity", "Model", "Query", "Most Frequent Class", "DeepARG Class"]]
-                .drop_duplicates())
+    elif most_freq:
+        pair_label_df = (label_df
+            .loc[label_df["Is Most Frequent Class"] != label_df["Is DeepARG Class"]]
+            [["Sample ID", "Alignment Identity", "Model", "Query", "Most Frequent Class", "DeepARG Class"]]
+            .drop_duplicates())
     else:
         pair_label_df = (label_df
             .loc[label_df["Is Diamond Best-Hit Class"] != label_df["Is DeepARG Class"]]
@@ -230,6 +229,7 @@ def make_heatmap_df(
             pair_label_df["DeepARG Class"].drop_duplicates().sort_values().to_list(),
             pair_label_df["Alignment Identity"].drop_duplicates().sort_values().to_list()],
         names=["Class", "Identity"])
+    
     if label_is_amr:
         mask_df = pd.DataFrame(
             data=np.full(
@@ -237,8 +237,7 @@ def make_heatmap_df(
                 fill_value=True),
             index=heatmap_x_axis,
             columns=heatmap_y_axis)
-
-    else:
+    elif not most_freq:
         denominator_df = pd.DataFrame(
             data=np.full(
                 shape=(heatmap_x_axis.shape[0], heatmap_y_axis.shape[0]),
@@ -253,23 +252,22 @@ def make_heatmap_df(
         columns=heatmap_y_axis)
 
     # Aggregate pair switch
-    if label_is_amr:
-        if not most_freq:
-            pair_df = (pair_label_df
-                .loc[label_df["Is Diamond Best-Hit Class"] != label_df["Is DeepARG Class"]]
-                [["Sample ID", "Alignment Identity", "Model", "Diamond Class", "DeepARG Class", "Query"]]
-                .drop_duplicates()
-                .groupby(by=[
-                    "Alignment Identity", "Model", "Diamond Class", "DeepARG Class"])
-                [["Query"]].count())
-        else:
-            pair_df = (pair_label_df
-                .loc[label_df["Is Most Frequent Class"] != label_df["Is DeepARG Class"]]
-                [["Sample ID", "Alignment Identity", "Model", "Most Frequent Class", "DeepARG Class", "Query"]]
-                .drop_duplicates()
-                .groupby(by=[
-                    "Alignment Identity", "Model", "Most Frequent Class", "DeepARG Class"])
-                [["Query"]].count())
+    if label_is_amr and not most_freq:
+        pair_df = (pair_label_df
+            .loc[label_df["Is Diamond Best-Hit Class"] != label_df["Is DeepARG Class"]]
+            [["Sample ID", "Alignment Identity", "Model", "Diamond Class", "DeepARG Class", "Query"]]
+            .drop_duplicates()
+            .groupby(by=[
+                "Alignment Identity", "Model", "Diamond Class", "DeepARG Class"])
+            [["Query"]].count())
+    elif most_freq:
+        pair_df = (pair_label_df
+            .loc[label_df["Is Most Frequent Class"] != label_df["Is DeepARG Class"]]
+            [["Sample ID", "Alignment Identity", "Model", "Most Frequent Class", "DeepARG Class", "Query"]]
+            .drop_duplicates()
+            .groupby(by=[
+                "Alignment Identity", "Model", "Most Frequent Class", "DeepARG Class"])
+            [["Query"]].count())
     # Aggregate pair switch and get label pair count per class pair
     else:
         pair_df = (pair_label_df
@@ -298,20 +296,48 @@ def make_heatmap_df(
         index=heatmap_x_axis,
         columns=heatmap_y_axis)
 
-    if label_is_amr:
-        x_is_best_y_in_alignment = label_df.loc[
-            (pd.merge(
-                left = label_df[[
-                    "Alignment Identity", "Model", 
-                    "Most Frequent Class" if most_freq else "Diamond Class", "amr"]].rename(
-                    columns={
-                        "amr": "DeepARG Class"}),
-                right = pair_label_df[[
-                    "Alignment Identity", "Model", 
-                    "Most Frequent Class" if most_freq else "Diamond Class", "DeepARG Class"]].drop_duplicates(),
-                how = 'left',
-                indicator='exist')["exist"] == 'both')]
+    if label_is_amr or most_freq:
+        x_is_best_y_in_alignment = label_df.loc[pd.merge(
+            left = label_df[[
+                "Alignment Identity", "Model", 
+                "Most Frequent Class" if most_freq else "Diamond Class", "amr"]].rename(
+                columns={
+                    "amr": "DeepARG Class"}),
+            right = pair_label_df[[
+                "Alignment Identity", "Model", 
+                "Most Frequent Class" if most_freq else "Diamond Class", "DeepARG Class"]].drop_duplicates(),
+            how = 'left',
+            indicator='exist')["exist"] == 'both']
+        x_is_best_has_y_alignment_abundance = (x_is_best_y_in_alignment
+            [["Sample ID", "Alignment Identity", "Model", 
+              "Most Frequent Class" if most_freq else "Diamond Class", "Query", "amr"]]
+            .drop_duplicates()
+            .groupby(by=["Alignment Identity", "Model", 
+                         "Most Frequent Class" if most_freq else "Diamond Class", "amr"])[["Query"]]
+            .count())
+    else:
+        x_is_best_y_in_alignment = label_df.loc[pd.merge(
+            left = label_df[[
+                "Alignment Identity", "Model", "Diamond Class", 
+                f"Diamond {extra_label}", "amr"]].rename(
+                columns={
+                    "amr": "DeepARG Class"}),
+            right = pair_label_df[[
+                "Alignment Identity", "Model", "Diamond Class", 
+                f"Diamond {extra_label}", "DeepARG Class"]].drop_duplicates(),
+            how = 'left',
+            indicator='exist')["exist"] == 'both']
+        x_is_best_has_y_alignment_abundance = (x_is_best_y_in_alignment
+            [[
+                "Sample ID", "Alignment Identity", "Model", "Diamond Class", 
+                f"Diamond {extra_label}", "Query", "amr"]]
+            .drop_duplicates()
+            .groupby([
+                "Alignment Identity", "Model", "Diamond Class", 
+                f"Diamond {extra_label}", "amr"])[["Query"]]
+            .count())
         
+    if label_is_amr:
         y_alignments_counts = (x_is_best_y_in_alignment
             [["Sample ID", "Alignment Identity", "Model", 
               "Most Frequent Class" if most_freq else "Diamond Class", "Query", "amr"]]
@@ -328,15 +354,43 @@ def make_heatmap_df(
             ["Sample ID", "Alignment Identity", "Model", 
              "Most Frequent Class" if most_freq else "Diamond Class", "Query", "amr"],
             inplace=True)
-        
-        x_is_best_has_y_alignment_abundance = (x_is_best_y_in_alignment
+    elif most_freq:
+        y_alignments_counts = (x_is_best_y_in_alignment
             [["Sample ID", "Alignment Identity", "Model", 
-              "Most Frequent Class" if most_freq else "Diamond Class", "Query", "amr"]]
-            .drop_duplicates()
-            .groupby(by=["Alignment Identity", "Model", 
-                         "Most Frequent Class" if most_freq else "Diamond Class", "amr"])[["Query"]]
-            .count())
-        
+              "Most Frequent Class", "Query", "amr", extra_label]]
+            .drop_duplicates())
+        if relative_to_db:
+            y_alignments_counts["count"] = y_alignments_counts.apply(
+                lambda x: label_count_df.at[(x["amr"], x[extra_label]), "count"], axis=1)
+        else:
+            y_alignments_counts["count"] = y_alignments_counts.apply(
+                lambda x: label_count_df.at[
+                    (x["Sample ID"], x["Alignment Identity"], x["Model"], x["Query"], x["amr"]), 
+                    "count"], axis=1)
+        y_alignments_counts = (y_alignments_counts
+            .groupby([
+                "Sample ID", "Alignment Identity", "Model", "Most Frequent Class", "Query", "amr"])[["count"]]
+            .sum())    
+    else:
+        y_alignments_counts = (x_is_best_y_in_alignment
+            [["Sample ID", "Alignment Identity", "Model", 
+              "Diamond Class", f"Diamond {extra_label}", "Query", "amr", extra_label]]
+            .drop_duplicates())
+        if relative_to_db:
+            y_alignments_counts["count"] = y_alignments_counts.apply(
+                lambda x: label_count_df.at[(x["amr"], x[extra_label]), "count"], axis=1)
+        else:
+            y_alignments_counts["count"] = y_alignments_counts.apply(
+                lambda x: label_count_df.at[
+                    (x["Sample ID"], x["Alignment Identity"], x["Model"], x["Query"], x["amr"]), 
+                    "count"], axis=1)
+        y_alignments_counts = (y_alignments_counts
+            .groupby([
+                "Sample ID", "Alignment Identity", "Model", "Diamond Class", 
+                f"Diamond {extra_label}", "Query", "amr"])[["count"]]
+            .sum())    
+    
+    if label_is_amr:    
         all_alignment_counts = (label_df
             [["Sample ID", "Alignment Identity", "Model", "Query", "amr"]]
             .drop_duplicates())
@@ -351,6 +405,23 @@ def make_heatmap_df(
         all_alignment_counts = (all_alignment_counts
             .groupby(by=["Sample ID", "Alignment Identity", "Model", "Query"])[["count"]]
             .sum())
+    else:        
+        all_alignment_counts = (label_df
+            [["Sample ID", "Alignment Identity", "Model", "Query", "amr", extra_label]]
+            .drop_duplicates())
+        if relative_to_db:
+            all_alignment_counts["count"] = all_alignment_counts.apply(
+                lambda x: label_count_df.at[(x["amr"], x[extra_label]), "count"], axis=1)
+        else:
+            all_alignment_counts["count"] = all_alignment_counts.apply(
+                lambda x: label_count_df.at[
+                    (x["Sample ID"], x["Alignment Identity"], x["Model"], x["Query"], x["amr"]), 
+                    "count"], axis=1)
+        all_alignment_counts = (all_alignment_counts
+            .groupby(by=["Sample ID", "Alignment Identity", "Model", "Query"])[["count"]]
+            .sum())
+        
+    if label_is_amr or most_freq:
         all_alignment_counts = y_alignments_counts.reset_index().apply(
             lambda x: 
                 pd.Series(data={
@@ -371,58 +442,7 @@ def make_heatmap_df(
                 "Alignment Identity", "Model", 
                 "Most Frequent Class" if most_freq else "Diamond Class", "amr"])["count"]
             .mean())
-        
     else:
-        x_is_best_y_in_alignment = label_df.loc[pd.merge(
-                left = label_df[["Alignment Identity", "Model", "Diamond Class", f"Diamond {extra_label}", "amr"]].rename(
-                    columns={
-                        "amr": "DeepARG Class"}),
-                right = pair_label_df[[
-                    "Alignment Identity", "Model", "Diamond Class", f"Diamond {extra_label}", "DeepARG Class"]].drop_duplicates(),
-                how = 'left',
-                indicator='exist')["exist"] == 'both']
-
-        y_alignments_counts = (x_is_best_y_in_alignment
-            [["Sample ID", "Alignment Identity", "Model", "Diamond Class", f"Diamond {extra_label}", "Query", "amr", extra_label]]
-            .drop_duplicates())
-        if relative_to_db:
-            y_alignments_counts["count"] = y_alignments_counts.apply(
-                lambda x: label_count_df.at[(x["amr"], x[extra_label]), "count"], axis=1)
-        else:
-            y_alignments_counts["count"] = y_alignments_counts.apply(
-                lambda x: label_count_df.at[
-                    (x["Sample ID"], x["Alignment Identity"], x["Model"], x["Query"], x["amr"]), 
-                    "count"], axis=1)
-        y_alignments_counts = (y_alignments_counts
-            .groupby([
-                "Sample ID", "Alignment Identity", "Model", "Diamond Class", 
-                f"Diamond {extra_label}", "Query", "amr"])[["count"]]
-            .sum())
-        
-        x_is_best_has_y_alignment_abundance = (x_is_best_y_in_alignment
-            [[
-                "Sample ID", "Alignment Identity", "Model", "Diamond Class", 
-                f"Diamond {extra_label}", "Query", "amr"]]
-            .drop_duplicates()
-            .groupby([
-                "Alignment Identity", "Model", "Diamond Class", 
-                f"Diamond {extra_label}", "amr"])[["Query"]]
-            .count())
-        
-        all_alignment_counts = (label_df
-            [["Sample ID", "Alignment Identity", "Model", "Query", "amr", extra_label]]
-            .drop_duplicates())
-        if relative_to_db:
-            all_alignment_counts["count"] = all_alignment_counts.apply(
-                lambda x: label_count_df.at[(x["amr"], x[extra_label]), "count"], axis=1)
-        else:
-            all_alignment_counts["count"] = all_alignment_counts.apply(
-                lambda x: label_count_df.at[
-                    (x["Sample ID"], x["Alignment Identity"], x["Model"], x["Query"], x["amr"]), 
-                    "count"], axis=1)
-        all_alignment_counts = (all_alignment_counts
-            .groupby(by=["Sample ID", "Alignment Identity", "Model", "Query"])[["count"]]
-            .sum())
         all_alignment_counts = y_alignments_counts.reset_index().apply(
             lambda x: 
                 pd.Series(data={
@@ -444,12 +464,12 @@ def make_heatmap_df(
 
     for row in pair_df.iterrows():
         # For y-axis
-        deeparg_class = row[0][3] if label_is_amr else row[0][4]
+        deeparg_class = row[0][3] if label_is_amr or most_freq else row[0][4]
         identity = row[0][0]
 
         # For x-axis
         diamond_class = row[0][2]
-        diamond_extra_label = row[0][2] if label_is_amr else row[0][3]
+        diamond_extra_label = row[0][2] if label_is_amr or most_freq else row[0][3]
         model = row[0][1]
         
         # For switch_df
@@ -457,19 +477,20 @@ def make_heatmap_df(
 
         # For exp_db
         x_switch_abundance = x_is_best_has_y_alignment_abundance["Query"].at[
-            (identity, model, diamond_class, deeparg_class) if label_is_amr else (
+            (identity, model, diamond_class, deeparg_class) if label_is_amr or most_freq else (
                 identity, model, diamond_class, diamond_extra_label, deeparg_class)]
         
         deeparg_probability = probabilities.at[
-            (identity, model, diamond_class, deeparg_class) if label_is_amr else (
+            (identity, model, diamond_class, deeparg_class) if label_is_amr or most_freq else (
                 identity, model, diamond_class, diamond_extra_label, deeparg_class)]
 
         # Insert in dfs
-        if label_is_amr:
+        if label_is_amr or most_freq:
             switch_df.at[(diamond_class, model), (deeparg_class, identity)] = float(switch)
             exp_df.at[(diamond_class, model), (deeparg_class, identity)] = (
                 float(deeparg_probability) * float(x_switch_abundance))
-            mask_df.at[(diamond_class, model), (deeparg_class, identity)] = False
+            if label_is_amr:
+                mask_df.at[(diamond_class, model), (deeparg_class, identity)] = False
         else:
             if np.isnan(switch_df.at[(diamond_class, model), (deeparg_class, identity)]):
                 denom = pair_counts_df.at[(identity, model, diamond_class), "label counts"]
@@ -489,9 +510,10 @@ def make_heatmap_df(
         .map(lambda x: np.log(x), na_action='ignore')
         .sort_index())
     
-    if not label_is_amr:
+    if not (label_is_amr or most_freq):
         heatmap_db = heatmap_db.div(
             denominator_df, fill_value=np.nan)
+    if not label_is_amr:
         return heatmap_db
     else:
         return (heatmap_db, mask_df)
@@ -517,23 +539,25 @@ label_df = pd.read_csv(f"{TABLE_LOCATION}/label_counts.tsv", sep='\t', header=0)
 seq_count_amr_df = pd.read_csv(SEQ_COUNT, sep="\t", header=0)
 hit_count_amr_df = pd.read_csv(HIT_COUNT, sep="\t", header=0, index_col=0)
 
-bar_graph = False
+bar_graph = True
 
 if bar_graph:
     # Those two columns are for the top bar graphs
     hit_count_amr_df.insert(5, "deeparg seq percentage", 0)
+    # hit_count_amr_df["deeparg seq percentage"] = hit_count_amr_df.apply(
+    #     lambda x: float(x["deeparg hit count"]) / float(seq_count_amr_df.loc[
+    #         seq_count_amr_df["sample id"] == x["sample id"]].iat[
+    #             0, 1 if x["model"] == 'SS' else 2]), axis=1)
     hit_count_amr_df["deeparg seq percentage"] = hit_count_amr_df.apply(
-        lambda x: float(x["deeparg hit count"]) / float(seq_count_amr_df.loc[
-            seq_count_amr_df["sample id"] == x["sample id"]].iat[
-                0, 1 if x["model"] == 'SS' else 2]), axis=1)
-    hit_count_amr_df.insert(6, "diamond seq percentage", 0)
-    hit_count_amr_df["diamond seq percentage"] = hit_count_amr_df.apply(
-        lambda x: float(x["diamond hit count"]) / float(seq_count_amr_df.loc[
-            seq_count_amr_df["sample id"] == x["sample id"]].iat[
-                0, 1 if x["model"] == 'SS' else 2]), axis=1)
+        lambda x: 1.0 - float(x["deeparg hit count"]) / float(x["diamond hit count"]), axis=1)
+    # hit_count_amr_df.insert(6, "diamond seq percentage", 0)
+    # hit_count_amr_df["diamond seq percentage"] = hit_count_amr_df.apply(
+    #     lambda x: float(x["diamond hit count"]) / float(seq_count_amr_df.loc[
+    #         seq_count_amr_df["sample id"] == x["sample id"]].iat[
+    #             0, 1 if x["model"] == 'SS' else 2]), axis=1)
 
     # This column is to later calculate values for bottom bar graphs
-    hit_count_amr_df.insert(7, "diff count", 0)
+    hit_count_amr_df.insert(6, "diff count", 0)
     hit_count_amr_df["diff count"] = hit_count_amr_df.apply(
          lambda x: label_df
             .loc[(
@@ -554,119 +578,106 @@ if bar_graph:
     # hit_count_amr_df["diff count"] = hit_count_amr_df.apply(
     #     lambda x: get_hit_count(diff_count, x), axis=1)
 
-    # Those two columns are for the bottom bar graphs
+    # This columns is for the bottom bar graphs
     hit_count_amr_df = hit_count_amr_df.sort_values(by=["model", "sample id", "alignment identity"])
-    hit_count_amr_df.insert(8, "hit percentage", 0)
-    hit_count_amr_df["hit percentage"] = hit_count_amr_df.apply(
-        lambda x: float(x["deeparg hit count"]) / float(hit_count_amr_df.loc[
-            (hit_count_amr_df["sample id"] == x["sample id"]) & 
-            (hit_count_amr_df["alignment identity"] == 30) & 
-            (hit_count_amr_df["model"] == x["model"])].iat[0, 3]), axis=1)
-    hit_count_amr_df.insert(9, "diff percentage", 0)
+    hit_count_amr_df.insert(7, "diff percentage", 0)
     hit_count_amr_df["diff percentage"] = hit_count_amr_df.apply(
         lambda x: float(x["diff count"]) / float(hit_count_amr_df.loc[
             (hit_count_amr_df["sample id"] == x["sample id"]) & 
-            (hit_count_amr_df["alignment identity"] == 30) & 
+            (hit_count_amr_df["alignment identity"] == x["alignment identity"]) & 
             (hit_count_amr_df["model"] == x["model"])].iat[0, 3]), axis=1)
 
     cb_palette = sn.color_palette("colorblind")
 
     # Make bar graph
-    plt.figure(figsize=(40, 22))
+    plt.figure(figsize=(40, 15))
     axes: list[matplotlib.axes.Axes] = [
-        plt.axes((0.04,0.06,0.46,0.43)), plt.axes((0.52,0.06,0.46,0.43)),
-        plt.axes((0.04,0.53,0.46,0.43)), plt.axes((0.52,0.53,0.46,0.43))]
+        plt.axes((0.05,0.1,0.46,0.4)), plt.axes((0.52,0.1,0.46,0.4)),
+        plt.axes((0.05,0.55,0.46,0.4)), plt.axes((0.52,0.55,0.46,0.4))]
 
     # We are making the overall diamond vs deeparg results
     for model, ax in zip(["SS", "LS"], axes[2:]):
         filtered_hit_count_amr_df = hit_count_amr_df.loc[hit_count_amr_df["model"] == model]
-        diamond = sn.barplot(
-            x=range(39),
-            y=np.insert(
-                arr=filtered_hit_count_amr_df["diamond seq percentage"].values,
-                obj=slice(3,30,3),
-                values=np.full(9, 0)),
-            color=cb_palette[2],
-            ax=ax)
+        # diamond = sn.barplot(
+        #     x=range(39),
+        #     y=np.insert(
+        #         arr=filtered_hit_count_amr_df["diamond seq percentage"].values,
+        #         obj=slice(3,30,3),
+        #         values=np.full(9, 0)),
+        #     color=cb_palette[2],
+        #     ax=ax)
         deeparg = sn.barplot(
             x=range(39),
             y=np.insert(
                 arr=filtered_hit_count_amr_df["deeparg seq percentage"].values,
                 obj=slice(3,30,3),
                 values=np.full(9, 0)), 
-            color=cb_palette[3],
+            color=cb_palette[1],
             ax=ax)
         
-        if model == "LS":
-            top_bar = mpatches.Patch(color=cb_palette[2], label='Not kept by DeepARG')
-            bottom_bar = mpatches.Patch(color=cb_palette[3], label='Kept by DeepARG')
-            ax.legend(handles=[top_bar, bottom_bar], fontsize=24)
+        # if model == "SS":
+        #     top_bar = mpatches.Patch(color=cb_palette[2], label='Not kept by DeepARG')
+        #     bottom_bar = mpatches.Patch(color=cb_palette[3], label='Kept by DeepARG')
+        #     ax.legend(
+        #         handles=[top_bar, bottom_bar], 
+        #         fontsize=30,
+        #         loc="upper left")
         ax.set_xticks(
             ticks=list(range(39)), 
             labels=np.full(39, ""))
-        ax.set_ylim(top=0.05)
+        ax.set_ylim(top=0.6)
         if model == "SS":
             ax.set_yticks(
-                ticks=[0,0.01,0.02,0.03,0.04,0.05], 
-                labels=["0","1","2","3","4","5"], fontsize=24)
-            plt.gcf().text(0.015, 0.745, f"Percentage of input sequences", rotation=90, fontsize=30, va='center')
-            plt.gcf().text(0.015, 0.98, "A", fontsize=40, weight='bold', va='center')
+                ticks=[0,0.1,0.2,0.3,0.4,0.5,0.6], 
+                labels=["0.0","10.0","20.0","30.0","40.0","50.0", "60.0"], fontsize=30)
+            plt.gcf().text(0.008, 0.75, f"Aligned queries (%)", rotation=90, fontsize=35, va='center')
+            plt.gcf().text(0.01, 0.97, "A", fontsize=35, weight='bold', va='center')
         else:
-            ax.set_yticks(ticks=[0,0.01,0.02,0.03,0.04,0.05], labels="")
+            ax.set_yticks(ticks=[0,0.1,0.2,0.3,0.4,0.5], labels="")
         ax.grid(visible=True, which="major", axis='y', color="0.75")
         ax.tick_params(length=0, pad=8)
-        ax.set_title(f"Percentage of {"Reads" if model=="SS" else "ORFs"} Aligned By Diamond and Kept by DeepARG", fontsize=36, loc="left")
-
+        ax.set_title(f"DeepARG-{model}", fontsize=35, loc="left")
+        
     # We are now making the switch vs no switch bar graph
     for model, ax in zip(["SS", "LS"], axes[:2]):
         filtered_hit_count_amr_df = hit_count_amr_df.loc[hit_count_amr_df["model"] == model]
-        same = sn.barplot(
-            x=range(39),
-            y=np.insert(
-                arr=filtered_hit_count_amr_df["hit percentage"].values,
-                obj=slice(3,30,3),
-                values=np.full(9, 0)), 
-            color=cb_palette[0],
-            ax=ax)
         different = sn.barplot(
             x=range(39),
             y=np.insert(
                 arr=filtered_hit_count_amr_df["diff percentage"].values,
                 obj=slice(3,30,3),
                 values=np.full(9, 0)), 
-            color=cb_palette[1],
+            color=cb_palette[0],
             ax=ax)
 
-        if model == "LS":
-            top_bar = mpatches.Patch(color=cb_palette[0], label='same')
-            bottom_bar = mpatches.Patch(color=cb_palette[1], label='different')
-            ax.legend(handles=[top_bar, bottom_bar], fontsize=24)
         ax.set_xticks(
             ticks=list(range(39)), 
             labels=np.insert(
                 arr=filtered_hit_count_amr_df["alignment identity"].values.astype('<U2'),
                 obj=slice(3,30,3),
                 values=np.full(9, "")),
-            rotation_mode="anchor", ha='center', fontsize=24)
+            rotation_mode="anchor", ha='center', fontsize=25)
         for loc, sample in enumerate(filtered_hit_count_amr_df["sample id"].drop_duplicates().values):
             print(sample)
             ax.text(
-                loc*4+1, -0.07, f"#{loc+1}", ha="center", va="center", fontsize=28)
-        ax.set_ylim(top=1.0)
+                loc*4+1, -0.018, f"#{loc+1}", ha="center", va="center", fontsize=30)
+        ax.set_ylim(top=0.15)
         if model == "SS":
             ax.set_yticks(
-                ticks=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1], 
-                labels=list(range(0, 110, 10)), fontsize=24)
-            plt.gcf().text(0.015, 0.275, f"Percentage of total DeepARG 30% hits", rotation=90, fontsize=30, va='center')
-            plt.gcf().text(0.015, 0.51, "B", fontsize=40, weight='bold', va='center')
+                ticks=[0,0.025,0.05,0.075,0.1,0.125,0.15], 
+                labels=[0.0,2.5,5.0,7.5,10.0,12.5,15.0], fontsize=30)
+            # plt.gcf().text(0.008, 0.275, f"Percentage of total DeepARG hits", rotation=90, fontsize=35, va='center')
+            plt.gcf().text(0.008, 0.28, f"DeepARG predictions (%)", rotation=90, fontsize=35, va='center')
+            plt.gcf().text(0.01, 0.52, "B", fontsize=35, weight='bold', va='center')
         else:
-            ax.set_yticks(ticks=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1], labels="")
+            ax.set_yticks(ticks=[0,0.025,0.05,0.075,0.1,0.125,0.15], labels="")
         ax.grid(visible=True, which="major", axis='y', color="0.75")
         ax.tick_params(length=0, pad=8)
-        ax.set_title(f"DeepARG-{model} Similarity to Diamond Best Hit", fontsize=36, loc="left")
+        #ax.set_title(f"DeepARG-{model} Similarity to Diamond Most Frequent Hit", fontsize=36, loc="left")
 
-    plt.gcf().text(0.51, 0.009, "Run (upper value is alignment identity, lower value is sample)", ha="center", fontsize=30)
+    plt.gcf().text(0.515, 0.009, "Run (upper value is alignment identity, lower value is sample)", ha="center", fontsize=35)
     plt.savefig("barplot.png")
+    sys.exit()
 
 # Rename AMR columns based on abbrev
 for row in range(amr_df.shape[0]):
@@ -694,23 +705,18 @@ custom_cmap.set_bad()
 
 share = False
 most_freq = True
-if most_freq and not share:
-    database = False
-    if database:
-        amr_count_df = (label_df[["amr", "amr ref count"]]
-            .drop_duplicates()
-            .rename(columns={"amr ref count": "count"}))
-        amr_count_df.set_index(keys="amr", inplace=True)
-
-        amr_db_heatmap_df, mask_df = make_heatmap_df(
-            amr_count_df, True, label_df, True, True, None)
-    else:
+database = True
+if most_freq and (share or not database):
+    if not share:
         amr_count_df = (label_df[["Sample ID", "Alignment Identity", "Model", "Query", "amr", "count"]]
             .groupby(["Sample ID", "Alignment Identity", "Model", "Query", "amr"])
             .sum())
-        
         amr_db_heatmap_df, mask_df = make_heatmap_df(
             amr_count_df, True, label_df, False, True, None)
+    else:
+        amr_db_heatmap_df, mask_df = make_sharing_heatmap_df(
+            label_df, most_freq, True, None)
+    
     # And now, heatmaps!
     fig = plt.figure(figsize=[18, 18])
     ax_left = fig.add_axes((0.1, 0.08, 0.75, 0.84))
@@ -752,14 +758,6 @@ if most_freq and not share:
         rotation_mode='anchor',
         fontsize=20)
 
-    # Add label to colorbar
-    fig.text(
-        x=0.92, y=0.16,
-        s="$\\ln\\left(\\frac{s_{X,Y}+1}{\\mathbb{E}[s_{X,Y}]+1}\\right)$",
-        ha='center',
-        va='center',
-        fontsize=30)
-
     # Seperate by group
     y_groups = amr_db_heatmap_df.columns.to_frame(index=False).groupby(["Class"]).size()
     x_groups = amr_db_heatmap_df.index.to_frame(index=False).groupby(["Class"]).size()
@@ -798,8 +796,12 @@ if most_freq and not share:
         va='top')
     matplotlib.rc('text', usetex=False)
         
-    fig.savefig(f"most_freq_amr_switch_relative_to_{"database" if database else "alignment"}.png")
-
+    if not share:
+        fig.savefig(f"most_freq_amr_switch_relative_to_alignment.png")
+    else:
+        fig.savefig(f"most_freq_share_label_with_deeparg.png")
+        
+    sys.exit()
 
 if share:
     amr_db_heatmap_df, mask_df = make_sharing_heatmap_df(
@@ -811,83 +813,81 @@ if share:
     super_db_heatmap_df: pd.DataFrame = make_sharing_heatmap_df(
         label_df, most_freq, False, "super")
     
-else:
-    database = False
-    if database:
+elif database:
         amr_count_df = (label_df[["amr", "amr ref count"]]
             .drop_duplicates()
             .rename(columns={"amr ref count": "count"}))
         amr_count_df.set_index(keys="amr", inplace=True)
 
         amr_db_heatmap_df, mask_df = make_heatmap_df(
-            amr_count_df, True, label_df, True, False, None)
+            amr_count_df, True, label_df, database, most_freq, None)
 
         clstr_amr_count_df = (label_df[["amr", "clstr", "clstr|amr ref count"]]
             .drop_duplicates()
             .rename(columns={"clstr|amr ref count": "count"}))
         clstr_amr_count_df.set_index(keys=["amr", "clstr"], inplace=True)
         clstr_db_heatmap_df: pd.DataFrame = make_heatmap_df(
-            clstr_amr_count_df, False, label_df, True, False, "clstr")
+            clstr_amr_count_df, False, label_df, database, most_freq, "clstr")
 
         domain_amr_count_df = (label_df[["amr", "dom", "dom|amr ref count"]]
             .drop_duplicates()
             .rename(columns={"dom|amr ref count": "count"}))
         domain_amr_count_df.set_index(keys=["amr", "dom"], inplace=True)
         domain_db_heatmap_df: pd.DataFrame = make_heatmap_df(
-            domain_amr_count_df, False, label_df, True, False, "dom")
+            domain_amr_count_df, False, label_df, database, most_freq, "dom")
 
         super_amr_count_df = (label_df[["amr", "super", "super|amr ref count"]]
             .drop_duplicates()
             .rename(columns={"super|amr ref count": "count"}))
         super_amr_count_df.set_index(keys=["amr", "super"], inplace=True)
         super_db_heatmap_df: pd.DataFrame = make_heatmap_df(
-            super_amr_count_df, False, label_df, True, False, "super")
-        
-    else:
-        amr_count_df = (label_df[["Sample ID", "Alignment Identity", "Model", "Query", "amr", "count"]]
-            .groupby(["Sample ID", "Alignment Identity", "Model", "Query", "amr"])
-            .sum())
-        
-        amr_db_heatmap_df, mask_df = make_heatmap_df(
-            amr_count_df, True, label_df, False, False, None)
-        clstr_db_heatmap_df: pd.DataFrame = make_heatmap_df(
-            amr_count_df, False, label_df, False, False, "clstr")
-        domain_db_heatmap_df: pd.DataFrame = make_heatmap_df(
-            amr_count_df, False, label_df, False, False, "dom")
-        super_db_heatmap_df: pd.DataFrame = make_heatmap_df(
-            amr_count_df, False, label_df, False, False, "super")
+            super_amr_count_df, False, label_df, database, most_freq, "super")
+  
+else:
+    amr_count_df = (label_df[["Sample ID", "Alignment Identity", "Model", "Query", "amr", "count"]]
+        .groupby(["Sample ID", "Alignment Identity", "Model", "Query", "amr"])
+        .sum())
+    
+    amr_db_heatmap_df, mask_df = make_heatmap_df(
+        amr_count_df, True, label_df, database, most_freq, None)
+    clstr_db_heatmap_df: pd.DataFrame = make_heatmap_df(
+        amr_count_df, False, label_df, database, most_freq, "clstr")
+    domain_db_heatmap_df: pd.DataFrame = make_heatmap_df(
+        amr_count_df, False, label_df, database, most_freq, "dom")
+    super_db_heatmap_df: pd.DataFrame = make_heatmap_df(
+        amr_count_df, False, label_df, database, most_freq, "super")
 
 # And now, heatmaps!
 vmin = min(
-    amr_db_heatmap_df.min().min(),
+    #amr_db_heatmap_df.min().min(),
     clstr_db_heatmap_df.min().min(),
     domain_db_heatmap_df.min().min(),
     super_db_heatmap_df.min().min())
 
 vmax = max(
-    amr_db_heatmap_df.max().max(),
+    #amr_db_heatmap_df.max().max(),
     clstr_db_heatmap_df.max().max(),
     domain_db_heatmap_df.max().max(),
     super_db_heatmap_df.max().max())
 
-fig = plt.figure(figsize=[36, 36])
-ax_amr = fig.add_axes((0.1, 0.52, 0.35, 0.4))
-ax_clstr = fig.add_axes((0.5, 0.52, 0.35, 0.4))
-ax_domain = fig.add_axes((0.1, 0.08, 0.35, 0.4))
-ax_super = fig.add_axes((0.5, 0.08, 0.35, 0.4))
-cbar = fig.add_axes((0.93, 0.2, 0.02, 0.6))
+fig = plt.figure(figsize=[40, 14])
+#ax_amr = fig.add_axes((0.1, 0.52, 0.35, 0.4))
+ax_clstr = fig.add_axes((0.05,0.13,0.28,0.8))
+ax_domain = fig.add_axes((0.34,0.13,0.28,0.8))
+ax_super = fig.add_axes((0.63,0.13,0.28,0.8))
+cbar = fig.add_axes((0.95, 0.2, 0.015, 0.6))
 
-sn.heatmap(
-    data = amr_db_heatmap_df.transpose(), 
-    mask=mask_df.transpose(), 
-    cmap=custom_cmap, 
-    center=0, 
-    ax=ax_amr, 
-    vmin=vmin,
-    vmax=vmax,
-    cbar_ax=cbar,
-    xticklabels=amr_db_heatmap_df.index.get_level_values("Class"),
-    yticklabels=amr_db_heatmap_df.columns.get_level_values("Class"))
+# sn.heatmap(
+#     data = amr_db_heatmap_df.transpose(), 
+#     mask=mask_df.transpose(), 
+#     cmap=custom_cmap, 
+#     center=0, 
+#     ax=ax_amr, 
+#     vmin=vmin,
+#     vmax=vmax,
+#     cbar_ax=cbar,
+#     xticklabels=amr_db_heatmap_df.index.get_level_values("Class"),
+#     yticklabels=amr_db_heatmap_df.columns.get_level_values("Class"))
 sn.heatmap(
     data = clstr_db_heatmap_df.transpose(), 
     mask=mask_df.transpose(), 
@@ -925,36 +925,44 @@ sn.heatmap(
 cbar.tick_params(labelsize=20)
 
 # Label x-axis
-ax_amr.set_xlabel("")
+#ax_amr.set_xlabel("")
 ax_clstr.set_xlabel("")
 ax_domain.set_xlabel("")
 ax_super.set_xlabel("")
 fig.text(
-    x=0.475, y=0.05, 
+    x=0.475, y=0.025, 
     s="Diamond Class label", 
     fontsize=35,
     ha='center')
 
 # Label y-axis
-ax_amr.set_ylabel("")
-ax_clstr.set_ylabel("")
+#ax_amr.set_ylabel("")
+#ax_clstr.set_ylabel("")
+ax_clstr.set_ylabel(
+    ylabel="DeepARG class label",
+    fontsize=35)
 ax_domain.set_ylabel("")
 ax_super.set_ylabel("")
-fig.text(
-    x=0.05, y=0.5, 
-    s="DeepARG class label",
-    fontsize=35,
-    rotation_mode='anchor',
-    rotation=90,
-    va='center')
+# fig.text(
+#     x=0.05, y=0.5, 
+#     s="DeepARG class label",
+#     fontsize=35,
+#     rotation_mode='anchor',
+#     rotation=90,
+#     va='center')
 
 # Label x-ticks
-ax_amr.set_xticks(
-    ticks=np.array(range(1, len(domain_db_heatmap_df.index.get_level_values("Class")), 2)),
-    labels=np.full(shape=len(domain_db_heatmap_df.index.get_level_values("Class").drop_duplicates()), fill_value=""))
+# ax_amr.set_xticks(
+#     ticks=np.array(range(1, len(domain_db_heatmap_df.index.get_level_values("Class")), 2)),
+#     labels=np.full(shape=len(domain_db_heatmap_df.index.get_level_values("Class").drop_duplicates()), fill_value=""))
 ax_clstr.set_xticks(
-    ticks=np.array(range(1, len(domain_db_heatmap_df.index.get_level_values("Class")), 2)),
-    labels=np.full(shape=len(domain_db_heatmap_df.index.get_level_values("Class").drop_duplicates()), fill_value=""))
+    ticks=np.array(range(1, len(clstr_db_heatmap_df.index.get_level_values("Class")), 2)),
+    labels=clstr_db_heatmap_df.index.get_level_values("Class").drop_duplicates(),
+    rotation_mode='anchor',
+    rotation=45,
+    ha='right',
+    va='top',
+    fontsize=20)
 ax_domain.set_xticks(
     ticks=np.array(range(1, len(domain_db_heatmap_df.index.get_level_values("Class")), 2)),
     labels=domain_db_heatmap_df.index.get_level_values("Class").drop_duplicates(),
@@ -973,29 +981,29 @@ ax_super.set_xticks(
     fontsize=20)
 
 # Label y-ticks
-ax_amr.set_yticks(
+# ax_amr.set_yticks(
+#     ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
+#     labels=amr_db_heatmap_df.columns.get_level_values("Class").drop_duplicates(),
+#     rotation_mode='anchor',
+#     fontsize=20)
+ax_clstr.set_yticks(
     ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
     labels=amr_db_heatmap_df.columns.get_level_values("Class").drop_duplicates(),
     rotation_mode='anchor',
     fontsize=20)
-ax_clstr.set_yticks(
-    ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
-    labels=np.full(shape=len(domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates()), fill_value=""))
 ax_domain.set_yticks(
     ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
-    labels=domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates(),
-    rotation_mode='anchor',
-    fontsize=20)
+    labels=np.full(shape=len(domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates()), fill_value=""))
 ax_super.set_yticks(
     ticks=np.array(range(1, len(domain_db_heatmap_df.columns.get_level_values("Class")), 3)) + 0.5,
     labels=np.full(shape=len(domain_db_heatmap_df.columns.get_level_values("Class").drop_duplicates()), fill_value=""))
 
 # Title
-ax_amr.set_title(
-    label="AMR label" if not share else "Share a label",
-    loc='left',
-    va='bottom',
-    fontsize=33)
+# ax_amr.set_title(
+#     label="AMR label" if not share else "Share a label",
+#     loc='left',
+#     va='bottom',
+#     fontsize=33)
 ax_clstr.set_title(
     label="Cluster|AMR label" if not share else "Share a cluster",
     loc='left',
@@ -1012,14 +1020,6 @@ ax_super.set_title(
     va='bottom',
     fontsize=33)
 
-# Add label to colorbar
-# fig.text(
-#     x=0.92, y=0.16,
-#     s="$\\ln\\left(\\frac{s_{X,Y}+1}{\\mathbb{E}[s_{X,Y}]+1}\\right)$",
-#     ha='center',
-#     va='center',
-#     fontsize=30)
-
 # Seperate by group
 y_groups = amr_db_heatmap_df.columns.to_frame(index=False).groupby(["Class"]).size()
 x_groups = amr_db_heatmap_df.index.to_frame(index=False).groupby(["Class"]).size()
@@ -1027,7 +1027,8 @@ x_groups = amr_db_heatmap_df.index.to_frame(index=False).groupby(["Class"]).size
 y_boundaries = np.cumsum(y_groups)
 x_boundaries = np.cumsum(x_groups)
 
-for ax in [ax_amr, ax_clstr, ax_domain, ax_super]:
+#for ax in [ax_amr, ax_clstr, ax_domain, ax_super]:
+for ax in [ax_clstr, ax_domain, ax_super]:
     for y_loc in y_boundaries[:-1]:
         ax.hlines(
             y_loc, 
@@ -1045,14 +1046,14 @@ for ax in [ax_amr, ax_clstr, ax_domain, ax_super]:
     
 # Add heatmap cell key:
 fig.text(
-    x=0.92, y=0.96,
+    x=0.96, y=0.96,
     s="Heatmap Cell:",
     fontsize=25,
     ha='center',
     va='bottom')
 matplotlib.rc('text', usetex=True)
 fig.text(
-    x=0.92, y=0.95,
+    x=0.96, y=0.95,
     s=r'''\begin{tabular}{ c | c | c |} & LS & SS \\ \hline 30 & & \\ \hline 50 & & \\ \hline 80 & & \end{tabular}''',
     fontsize=25,
     ha='center',
@@ -1061,4 +1062,4 @@ fig.text(
 if share:
     fig.savefig(f"{"most_freq" if most_freq else "best_hit"}_share_label_with_deeparg.png")
 else:
-    fig.savefig(f"amr_switch_relative_to_{"database" if database else "alignment"}.png")
+    fig.savefig(f"{"most_freq" if most_freq else "best_hit"}_switch_relative_to_{"database" if database else "alignment"}.png")
