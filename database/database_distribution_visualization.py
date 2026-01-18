@@ -7,6 +7,7 @@ import networkx as nx
 import seaborn as sn
 import pandas as pd
 import numpy as np
+import sys
 
 def make_label_share_matrix(df: pd.DataFrame, classes: pd.Series, label: str) -> pd.DataFrame:
     labels = df[label].drop_duplicates().to_list()
@@ -42,7 +43,7 @@ def make_label_adj_matrix(df: pd.DataFrame, classes: pd.Series, label: str) -> p
     
     return label_share
 
-VERSION = 2
+VERSION = sys.argv[1]
 FEATURE_DATA = f"v{VERSION}_feature_data.csv"
 
 abbrev_file = open("amr_abbrev.csv", "r")
