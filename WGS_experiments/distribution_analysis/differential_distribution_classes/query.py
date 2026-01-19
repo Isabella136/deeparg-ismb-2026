@@ -1,6 +1,5 @@
 from differential_distribution_classes.alignment import Alignment
 from differential_distribution_classes.reference import Reference
-from multiprocessing import shared_memory
 import pandas as pd
 import numpy as np
 
@@ -86,8 +85,8 @@ class Query:
     def get_all_alignments_names(self) -> list[str]:
         return [alignment.get_name() for alignment in self.alignments]
     
-    def get_all_alignment_groupings(self) -> list[tuple[str]]:
-        return [alignment.get_groupings() for alignment in self.alignments]
+    def get_all_alignment_annotations(self) -> list[tuple[str]]:
+        return [alignment.get_annotations() for alignment in self.alignments]
     
     def get_all_alignment_bitscores(self) -> list[float] :
         return [alignment.get_bitscore() for alignment in self.alignments]
@@ -98,9 +97,9 @@ class Query:
     def get_top_diamond_classification(self) -> str :
         return self.get_top_diamond_alignment().get_classification()
 
-    def get_top_diamond_alignment_grouping(self) -> tuple[str, str, str, str] :
+    def get_top_diamond_alignment_annotation(self) -> tuple[str, str, str, str] :
         """Returns clstr, arg, dom, super and amr of best Diamond alignment, respectively"""
-        return self.get_top_diamond_alignment().get_groupings()
+        return self.get_top_diamond_alignment().get_annotations()
     
     def get_top_deeparg_hit(self) -> Alignment :
         if not self.deeparg_hit:
@@ -112,10 +111,6 @@ class Query:
         if not error and not self.deeparg_hit:
             return "none"
         return self.get_top_deeparg_hit().get_classification()
-    
-    def get_top_deeparg_hit_grouping(self) -> tuple[str, str, str, str] :
-        """Returns clstr, arg, dom, super and amr of DeepARG hit, respectively"""
-        return self.get_top_deeparg_hit().get_groupings()
     
     def passed_cov_threshold(self) -> bool :
         return len(self.alignments) > 0
@@ -132,80 +127,6 @@ class Query:
             reference_dom_amr_count,
             reference_super_amr_count,
             reference_amr_count)
-    
-    def create_query_decision_vector(
-            self, shared_arrays_data: list[tuple]) -> "QueryDecisionVector":
-        return QueryDecisionVector(self, shared_arrays_data)
-    
-class QueryDecisionVector:
-    deeparg_class: str
-    decision_vector: pd.DataFrame
-
-    def __init__(self, query: Query, shared_arrays_data: list[tuple]):
-        # Retrieve shared memory
-        features_memory = shared_memory.SharedMemory(name='features')
-        features = np.ndarray(
-            shape=shared_arrays_data[0][0], dtype=shared_arrays_data[0][1],
-            buffer=features_memory.buf)
-        
-        clstr_array_memory = shared_memory.SharedMemory(name='clstr')
-        clstr_array = np.ndarray(
-            shape=shared_arrays_data[1][0], dtype=shared_arrays_data[1][1],
-            buffer=clstr_array_memory.buf)
-        
-        dom_array_memory = shared_memory.SharedMemory(name='dom')
-        dom_array = np.ndarray(
-            shape=shared_arrays_data[2][0], dtype=shared_arrays_data[2][1],
-            buffer=dom_array_memory.buf)
-        
-        super_array_memory = shared_memory.SharedMemory(name='super')
-        super_array = np.ndarray(
-            shape=shared_arrays_data[3][0], dtype=shared_arrays_data[3][1],
-            buffer=super_array_memory.buf)
-        
-        amr_idx_array_memory = shared_memory.SharedMemory(name='amr')
-        amr_idx_array = np.ndarray(
-            shape=shared_arrays_data[4][0], dtype=shared_arrays_data[4][1],
-            buffer=amr_idx_array_memory.buf)
-
-        self.deeparg_class = query.get_top_deeparg_classification(False)
-        alignments = np.array(query.get_all_alignments())
-        get_ref_name = np.vectorize(lambda a: a.get_name())
-        get_clstr_amr = np.vectorize(lambda a: f"{a.get_cluster()}|{a.get_classification()}")
-        get_dom_amr = np.vectorize(lambda a: f"dom:{a.get_domain_ids()}|{a.get_classification()}")
-        get_super_amr = np.vectorize(lambda a: f"super:{a.get_super_ids()}|{a.get_classification()}")
-        get_amr = np.vectorize(lambda a: a.get_classification())
-        get_bitscore = np.vectorize(lambda a: a.get_bitscore())
-        alignments_matrix = pd.DataFrame(data={
-            'ref'   : get_ref_name(alignments),
-            'clstr' : get_clstr_amr(alignments),
-            'dom'   : get_dom_amr(alignments),
-            'super' : get_super_amr(alignments),
-            'amr'   : get_amr(alignments),
-            'bit'   : get_bitscore(alignments)})
-        cols = np.concat((features, "final class"), axis=None)
-        self.decision_vector = pd.DataFrame(
-            data=np.full(shape=(1,len(cols)), fill_value=0.0), columns=cols)
-        self.decision_vector.at[0,"final class"] = float(np.extract(
-            amr_idx_array[:,0]==self.deeparg_class, amr_idx_array[:,1])[0])
-        for row in alignments_matrix.iterrows():
-            self.decision_vector.at[0,row[1]['ref']] = row[1]['bit']
-            self.decision_vector.at[0,row[1]['clstr']] += (
-                row[1]['bit'] / float(np.extract(clstr_array[:,0]==row[1]['clstr'], clstr_array[:,1])[0]))
-            self.decision_vector.at[0,row[1]['dom']] += (
-                row[1]['bit'] / float(np.extract(dom_array[:,0] == row[1]['dom'][4:], dom_array[:,1])[0]))
-            self.decision_vector.at[0,row[1]['super']] += (
-                row[1]['bit'] / float(np.extract(super_array[:,0] == row[1]['super'][6:], super_array[:,1])[0]))
-        
-        # Close shared memory to avoid leaks
-        amr_idx_array_memory.close()
-        clstr_array_memory.close()
-        super_array_memory.close()
-        dom_array_memory.close()
-        features_memory.close()
-            
-    def get_decision_vector(self) -> pd.DataFrame :
-        return self.decision_vector
     
 class QueryVector:
     label_count: pd.DataFrame
@@ -226,12 +147,12 @@ class QueryVector:
             reference_super_amr_count: dict[str, int],
             reference_amr_count: dict[str, int]):
         names = np.array(query.get_all_alignments_names())
-        groupings = np.array(query.get_all_alignment_groupings())
+        annotations = np.array(query.get_all_alignment_annotations())
         bitscores = np.array(query.get_all_alignment_bitscores())
 
         index = pd.MultiIndex.from_arrays(arrays=[
-            groupings[:,0], groupings[:,1], groupings[:,2],
-            groupings[:,3], groupings[:,4], names], names=[
+            annotations[:,0], annotations[:,1], annotations[:,2],
+            annotations[:,3], annotations[:,4], names], names=[
                 "clstr", "arg", "dom", "super", "amr", "names"])
         
         feature_matrix = pd.DataFrame(
@@ -260,7 +181,7 @@ class QueryVector:
             if self.label_count.groupby(by=["amr"])["count"].sum().max() > self.label_count.loc[
                 self.label_count["amr"]==self.deeparg_class]["count"].sum() else self.deeparg_class)
 
-        self.diamond_labels = query.get_top_diamond_alignment_grouping()
+        self.diamond_labels = query.get_top_diamond_alignment_annotation()
 
         self.label_count["Is Diamond Best Hit Label"] = self.label_count.apply(
             lambda x: tuple(x["clstr":"amr"].to_list()) == self.diamond_labels, axis=1)
