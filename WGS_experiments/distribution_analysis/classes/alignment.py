@@ -1,5 +1,5 @@
-from differential_distribution_classes.domain import DomainContainer, Domain
-from differential_distribution_classes.reference import Reference
+from classes.domain import DomainContainer, Domain
+from classes.reference import Reference
 
 class Alignment(DomainContainer):
     def __init__(self, row: list[str], ref_dict: dict[str, Reference]):

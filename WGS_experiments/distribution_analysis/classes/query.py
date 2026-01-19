@@ -1,5 +1,5 @@
-from differential_distribution_classes.alignment import Alignment
-from differential_distribution_classes.reference import Reference
+from classes.alignment import Alignment
+from classes.reference import Reference
 import pandas as pd
 import numpy as np
 

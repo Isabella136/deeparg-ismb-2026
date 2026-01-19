@@ -16,11 +16,14 @@ Install Biopython (>= v1.85), pandas (>= v2.3.2), seaborn (v0.13.2) and networkx
 
 Run the following:
 
+    cd database/database clustering
+    ./cluster.sh
+    cd ../
     python concat_ver_to_seq.py
     python feature_data_extraction.py
     python database_distribution_visualization.py 2
 
-Alternatively, can create figures for DeepARG version 1 by also running
+Alternatively, you can create figures for DeepARG version 1 by also running
 
     python database_distribution_visualization.py 1
 
@@ -31,24 +34,20 @@ Create a virtual conda environment to run DeepARG:
 - Create a virtual environment with conda:
 
     ```conda create -n deeparg_env python=2.7.18
-    source activate deeparg_env```
-
+    source activate deeparg_env
 - Install diamond with conda (inside virtual environment): 
 
-    ```conda install -c bioconda diamond==0.9.24```
-
+    ```conda install -c bioconda diamond==0.9.24
 - Optional (used for short reads pipeline): 
 
     ```conda install -c bioconda trimmomatic
     conda install -c bioconda vsearch
     conda install -c bioconda bedtools==2.29.2
     conda install -c bioconda bowtie2==2.3.5.1
-    conda install -c bioconda samtools```
-
+    conda install -c bioconda samtools
 - Activate virtual environment
 
-    ```conda activate deeparg_env```
-
+    ```conda activate deeparg_env
 Fetch the raw reads by running the `get_reads.sh` script:
 
     cd WGS_experiments/samples

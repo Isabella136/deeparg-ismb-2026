@@ -1,5 +1,5 @@
-from differential_distribution_classes.reference import Reference
-from differential_distribution_classes.query import Query
+from classes.reference import Reference
+from classes.query import Query
 import pandas as pd
 import pickle
 import os
@@ -12,13 +12,6 @@ ALIGNMENT_FILE = "X.align.daa.tsv"
 SAMPLE_ID_FILE = "../real_samples.txt"
 PATH_TO_SS = "deeparg_results"
 PATH_TO_LS = "spades/deeparg_results"
-
-OUTPUT_LOC = "differential_distribution_output"
-CLUSTER_OUTPUT = "cluster.tsv"
-ARG_OUTPUT = "arg.tsv"
-AMR_OUTPUT = "amr.tsv"
-DOMAIN_OUTPUT = "domain.tsv"
-SUPER_OUTPUT = "super.tsv"
 
 GRAPH = False
 
@@ -133,10 +126,6 @@ def main():
                     reference_all_groups_count[all_groups] = 1
                 else:
                     reference_all_groups_count[all_groups] += 1
-
-        # Check to see if output directory exist, or make one
-        if not os.path.exists(OUTPUT_LOC):
-            os.mkdir(OUTPUT_LOC)
         
         # Go through each run one at a time
         for sample_id in sample_id_list:
@@ -222,11 +211,11 @@ def main():
                 
                 if first:
                     all_labels_df.to_csv(
-                        path_or_buf=f"{OUTPUT_LOC}/label_counts.tsv",
+                        path_or_buf=f"label_counts.tsv",
                         sep="\t", float_format='{:.4f}'.format, index=False)
                 else:
                     all_labels_df.to_csv(
-                        path_or_buf=f"{OUTPUT_LOC}/label_counts.tsv",
+                        path_or_buf=f"label_counts.tsv",
                         sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
                     first = False
 

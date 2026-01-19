@@ -1,4 +1,4 @@
-from differential_distribution_classes.domain import DomainContainer, Domain
+from classes.domain import DomainContainer, Domain
 
 class Reference(DomainContainer):
     def __init__(self, arg):

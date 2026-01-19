@@ -266,11 +266,11 @@ plt.figure(figsize=(15, 30))
 super_ax = plt.axes((0.02,0.01,0.96,0.47))
 clstr_ax = plt.axes((0.02,0.50,0.96,0.47))
 
-G_important_nodes = ["PMX", "UNC", "MDR"]
+G_important_nodes = ["PEP", "UNC", "MDR"]
 G_clstr_outer_nodes = [
-    "GlyP", "MLS", "FQ", "TET", "BL", "AC", "AD", "FFA", "TRI", "PEP", "AG", "PHE"]
+    "GlyP", "MLS", "FQ", "TET", "AC", "AD", "FFA", "TRI", "BL", "PMX", "AG", "PHE"]
 G_super_outer_nodes = [
-    "GlyP", "BAC", "MLS", "FQ", "TET", "OXA", "BL", "AC", "AD", "BCM", "FFA", "FOM", "NUC", "TRI", "PEP", "TET-C", "AG", "PHE"]
+    "PHE", "GlyP", "MLS", "FQ", "TET", "OXA", "AC", "AD", "BCM", "FFA", "FOM", "NUC", "TRI", "BL", "PMX", "BAC", "TET-C", "AG"]
 
 G_clstr_nodes = set([row[0][0] for row in clstr_share_matrix.iterrows() if (
     (row[1].iat[0] > 0) and ((row[0][0] in G_important_nodes) or (row[0][1] in G_important_nodes)))])
@@ -364,7 +364,7 @@ cbar = plt.axes((0.95, 0.15, 0.02, 0.7))
 
 sn.heatmap(
     data=clstr_adj_matrix,
-    mask=np.triu(np.ones_like(clstr_adj_matrix)),
+    #mask=np.triu(np.ones_like(clstr_adj_matrix)),
     vmax=9,
     annot=True,
     center=0,
@@ -395,7 +395,7 @@ clstr_ax.set_ylabel("")
 
 sn.heatmap(
     data=super_adj_matrix,
-    mask=np.triu(np.ones_like(super_adj_matrix)),
+    #mask=np.triu(np.ones_like(super_adj_matrix)),
     vmax=9,
     annot=True,
     center=0,
