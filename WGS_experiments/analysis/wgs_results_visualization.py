@@ -1,4 +1,5 @@
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.axes
 import seaborn as sn
@@ -7,9 +8,7 @@ import numpy as np
 import matplotlib
 import sys
 
-FEATURE_DATA = "../../database/v2_feature_data.csv"
 HIT_COUNT = "../samples/deeparg_hit_count.tsv"
-SEQ_COUNT = "../samples/sequence_count.tsv"
 
 matplotlib.rcParams["mathtext.fontset"] = "dejavusans"
 matplotlib.rcParams["font.family"] = "DejaVu Sans"
@@ -26,7 +25,6 @@ abbrev_file.close()
 label_df = pd.read_csv("label_counts.tsv", sep='\t', header=0).rename(columns={"bitscore" : "count"})
 
 # Populate hit_count_amr_df for bar graphs
-seq_count_amr_df = pd.read_csv(SEQ_COUNT, sep="\t", header=0)
 hit_count_amr_df = pd.read_csv(HIT_COUNT, sep="\t", header=0, index_col=0)
 
 # This column is for top bar graphs
@@ -57,29 +55,37 @@ hit_count_amr_df["diff count"] = hit_count_amr_df.apply(
 hit_count_amr_df = hit_count_amr_df.sort_values(by=["model", "sample id", "alignment identity"])
 hit_count_amr_df.insert(7, "diff percentage", 0)
 hit_count_amr_df["diff percentage"] = hit_count_amr_df.apply(
-    lambda x: float(x["diff count"]) / float(hit_count_amr_df.loc[
-        (hit_count_amr_df["sample id"] == x["sample id"]) & 
-        (hit_count_amr_df["alignment identity"] == x["alignment identity"]) & 
-        (hit_count_amr_df["model"] == x["model"])].iat[0, 3]), axis=1)
+    lambda x: float(x["diff count"]) / float(x["deeparg hit count"]), axis=1)
 
 cb_palette = sn.color_palette("colorblind")
 
 # Make figure 3
-plt.figure(figsize=(40, 8))
+plt.figure(figsize=(20, 10))
 axes: list[matplotlib.axes.Axes] = [
-    plt.axes((0.05,0.12,0.44,0.8)), plt.axes((0.54,0.12,0.44,0.8))]
+    plt.axes((0.1,0.2,0.38,0.7)), plt.axes((0.56,0.2,0.38,0.7))]
 
 # Figure 3A
 deeparg = sn.barplot(
     x=range(6),
     y=hit_count_amr_df.groupby(
         ["model", "alignment identity"])["deeparg seq percentage"].mean() ,
-    color=cb_palette[1],
+    color=cb_palette[0],
     ax=axes[0])
+# different = sn.barplot(
+#     x=range(6),
+#     y=hit_count_amr_df.groupby(
+#         ["model", "alignment identity"])["diff percentage"].mean(),
+#     color=cb_palette[0],
+#     ax=axes[0])
+
+# top_bar = mpatches.Patch(color=cb_palette[1], label='Kept by DeepARG')
+# bottom_bar = mpatches.Patch(color=cb_palette[0], label='Different from Diamond most frequent class')
+# axes[0].legend(handles=[top_bar, bottom_bar], fontsize=24)
+
 axes[0].set_xticks(
     ticks=range(6), 
     labels=["LS-30%", "LS-50%", "LS-80%", "SS-30%", "SS-50%", "SS-80%"],
-    rotation_mode="anchor", ha='center', fontsize=25)
+    rotation_mode="anchor", ha='right', va='top', rotation=45, fontsize=30)
 axes[0].set_yticks(
     ticks=[0,0.2,0.4,0.6,0.8,1], 
     labels=["0.0","20.0","40.0","60.0","80.0","100.0"], fontsize=30)
@@ -99,7 +105,7 @@ different = sn.barplot(
 axes[1].set_xticks(
     ticks=range(6), 
     labels=["LS-30%", "LS-50%", "LS-80%", "SS-30%", "SS-50%", "SS-80%"],
-    rotation_mode="anchor", ha='center', fontsize=25)
+    rotation_mode="anchor", ha='right', va='top', rotation=45, fontsize=30)
 axes[1].set_ylim(top=0.06)
 axes[1].set_yticks(
     ticks=[0,0.01,0.02,0.03, 0.04, 0.05,0.06], 

@@ -27,7 +27,7 @@ Alternatively, you can create figures for DeepARG version 1 by also running
 
     python database_distribution_visualization.py 1
 
-# Running the WGS experiments (Slurm is recommented)
+# Running the WGS experiments (Slurm is required)
 Install NCBI's Entrez Direct (installation link [here](https://www.ncbi.nlm.nih.gov/books/NBK179288/#chapter6.Getting_Started)).  
 Download and install [bbtools](https://github.com/bbushnell/BBTools?tab=readme-ov-file#-installation), [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqc), [spades](https://github.com/ablab/spades/releases/tag/v4.2.0), and [prodigal](https://github.com/hyattpd/Prodigal/wiki/installation).  
 Create a virtual conda environment to run DeepARG:
@@ -57,18 +57,36 @@ Once done, start a preprocessing job with sbatch by running
 
     sbatch ./preprocess_reads.sh
 
-After the job is completed, you can now run DeepARG-SS:
+After the job is completed, you can now run DeepARG-SS with this command:
 
     sbatch ./deeparg_read_runs.sh
 
-Meanwhile, you can also assembled the reads into contigs with
+Meanwhile, you can also assembled the reads into contigs with this command:
 
     sbatch ./reads_assemble.sh
 
-Once the assembly is done, you can now find ORFs and run DeepARG-LS:
+Once the assembly is done, you can now find ORFs and run DeepARG-LS with this command:
 
     sbatch ./deeparg_contig_runs.sh
 
+# Recreating Figures 3-5 + All Supplementary Figures
+After WGS experiments are completed, get the number of hits per run by running
 
+    cd WGS_experiments/samples
+    python deeparg_hit_count.py
 
+Then, you can recreate figures 3-5 by running
+
+    cd ../analysis
+    python multi_class_alignment_table_generator.py
+    python wgs_results_visualization.py SS 50
+
+To also get the supplementary figures, you can then run
+
+    python wgs_results_visualization.py SS 30
+    python wgs_results_visualization.py SS 80
+    python wgs_results_visualization.py LS 30
+    python wgs_results_visualization.py LS 50
+    python wgs_results_visualization.py LS 80
+    
 
