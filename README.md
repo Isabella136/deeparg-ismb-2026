@@ -32,22 +32,26 @@ Install NCBI's Entrez Direct (installation link [here](https://www.ncbi.nlm.nih.
 Download and install [bbtools](https://github.com/bbushnell/BBTools?tab=readme-ov-file#-installation), [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqc), [spades](https://github.com/ablab/spades/releases/tag/v4.2.0), and [prodigal](https://github.com/hyattpd/Prodigal/wiki/installation).  
 Create a virtual conda environment to run DeepARG:
 - Create a virtual environment with conda:
-
-    ```conda create -n deeparg_env python=2.7.18
+    ```
+    conda create -n deeparg_env python=2.7.18
     source activate deeparg_env
+    ```
 - Install diamond with conda (inside virtual environment): 
-
-    ```conda install -c bioconda diamond==0.9.24
+    ```
+    conda install -c bioconda diamond==0.9.24
+    ```
 - Optional (used for short reads pipeline): 
-
-    ```conda install -c bioconda trimmomatic
+    ```
+    conda install -c bioconda trimmomatic
     conda install -c bioconda vsearch
     conda install -c bioconda bedtools==2.29.2
     conda install -c bioconda bowtie2==2.3.5.1
     conda install -c bioconda samtools
+    ```
 - Activate virtual environment
-
-    ```conda activate deeparg_env
+    ```
+    conda activate deeparg_env
+    ```
 Fetch the raw reads by running the `get_reads.sh` script:
 
     cd WGS_experiments/samples
@@ -70,6 +74,11 @@ Once the assembly is done, you can now find ORFs and run DeepARG-LS with this co
     sbatch ./deeparg_contig_runs.sh
 
 # Recreating Figures 3-5 + All Supplementary Figures
+Install pandas (>= v2.3.2) and seaborn (v0.13.2)
+
+    pip install pandas
+    pip install seaborn
+
 After WGS experiments are completed, get the number of hits per run by running
 
     cd WGS_experiments/samples
