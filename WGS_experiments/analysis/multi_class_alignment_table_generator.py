@@ -174,12 +174,16 @@ def main():
                         "Is Diamond Best-Hit Class",
                         "Is Most Frequent Class",
                         "Is DeepARG Class",
+                        "Is Class with Biggest Superfam",
+                        "Is Class with Biggest Cluster",
                         "Diamond Class",
                         "Diamond clstr",
                         "Diamond dom",
                         "Diamond super",
                         "Most Frequent Class",
                         "DeepARG Class",
+                        "Class with Biggest Superfam",
+                        "Class with Biggest Cluster",
                         "Query"])
                 query_count = 0
                 for query in query_dict.values():
@@ -217,6 +221,6 @@ def main():
                     all_labels_df.to_csv(
                         path_or_buf=f"label_counts.tsv",
                         sep="\t", float_format='{:.4f}'.format, mode='a', header=False, index=False)
-                    first = False
+                first = False
 
 main()

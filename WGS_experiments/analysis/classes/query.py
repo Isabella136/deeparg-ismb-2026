@@ -180,6 +180,14 @@ class QueryVector:
             self.label_count.groupby(by=["amr"])["count"].sum().idxmax()
             if self.label_count.groupby(by=["amr"])["count"].sum().max() > self.label_count.loc[
                 self.label_count["amr"]==self.deeparg_class]["count"].sum() else self.deeparg_class)
+        self.class_with_big_super = (
+            self.label_count[["super", "amr", "super|amr ref count"]].drop_duplicates().groupby(by=["amr"])["super|amr ref count"].max().idxmax()
+            if self.label_count[["super", "amr", "super|amr ref count"]].drop_duplicates().groupby(by=["amr"])["super|amr ref count"].max().max() > self.label_count.loc[
+                self.label_count["amr"]==self.deeparg_class]["super|amr ref count"].max() else self.deeparg_class)
+        self.class_with_big_clstr = (
+            self.label_count[["clstr", "amr", "clstr|amr ref count"]].drop_duplicates().groupby(by=["amr"])["clstr|amr ref count"].max().idxmax()
+            if self.label_count[["clstr", "amr", "clstr|amr ref count"]].drop_duplicates().groupby(by=["amr"])["clstr|amr ref count"].max().max() > self.label_count.loc[
+                self.label_count["amr"]==self.deeparg_class]["clstr|amr ref count"].max() else self.deeparg_class)
 
         self.diamond_labels = query.get_top_diamond_alignment_annotation()
 
@@ -191,14 +199,20 @@ class QueryVector:
             lambda x: x["amr"] == self.most_freq_class, axis=1)
         self.label_count["Is DeepARG Class"] = self.label_count.apply(
             lambda x: x["amr"] == self.deeparg_class, axis=1)
+        self.label_count["Is Class with Biggest Superfam"] = self.label_count.apply(
+            lambda x: x["amr"] == self.class_with_big_super, axis=1)
+        self.label_count["Is Class with Biggest Cluster"] = self.label_count.apply(
+            lambda x: x["amr"] == self.class_with_big_clstr, axis=1)
         
 
         self.label_count["Diamond Class"] = self.diamond_class
-        self.label_count["Diamond Clstr"] = self.diamond_labels[0]
-        self.label_count["Diamond Dom"] = self.diamond_labels[2]
-        self.label_count["Diamond Super"] = self.diamond_labels[3]
+        self.label_count["Diamond clstr"] = self.diamond_labels[0]
+        self.label_count["Diamond dom"] = self.diamond_labels[2]
+        self.label_count["Diamond super"] = self.diamond_labels[3]
         self.label_count["Most Frequent Class"] = self.most_freq_class
         self.label_count["DeepARG Class"] = self.deeparg_class
+        self.label_count["Class with Biggest Superfam"] = self.class_with_big_super
+        self.label_count["Class with Biggest Cluster"] = self.class_with_big_clstr
         self.label_count["Query"] = self.name
         
     def has_multiple_possible_classes(self) -> bool :
