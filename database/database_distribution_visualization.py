@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
+from pyvis.network import Network
+
 from itertools import product
 
 import networkx as nx
@@ -266,86 +268,68 @@ plt.figure(figsize=(15, 30))
 super_ax = plt.axes((0.02,0.01,0.96,0.47))
 clstr_ax = plt.axes((0.02,0.50,0.96,0.47))
 
-G_important_nodes = ["PEP", "UNC", "MDR"]
-G_clstr_outer_nodes = [
-    "GlyP", "MLS", "FQ", "TET", "AC", "AD", "FFA", "TRI", "BL", "PMX", "AG", "PHE"]
-G_super_outer_nodes = [
-    "PHE", "GlyP", "MLS", "FQ", "TET", "OXA", "AC", "AD", "BCM", "FFA", "FOM", "NUC", "TRI", "BL", "PMX", "BAC", "TET-C", "AG"]
-
-G_clstr_nodes = set([row[0][0] for row in clstr_share_matrix.iterrows() if (
-    (row[1].iat[0] > 0) and ((row[0][0] in G_important_nodes) or (row[0][1] in G_important_nodes)))])
+G_clstr_nodes = set([
+    row[0][0] for row in clstr_share_matrix.iterrows() if ((row[1].iat[0] > 0))])
 G_clstr = nx.Graph()
 G_clstr.add_nodes_from(G_clstr_nodes)
 G_clstr.add_weighted_edges_from([
-    row for row in clstr_share_matrix.reset_index(names=["class 1", "class 2"]).itertuples(index=False,name=None)
-    if (row[2] > 0) and (row[0] > row[1]) and ((row[0] in G_important_nodes) or (row[1] in G_important_nodes))])
+    (row[0][0], row[0][1], row[1].iat[0]) for row in clstr_share_matrix.iterrows()
+    if (row[1].iat[0] > 0) and (row[0][0] > row[0][1])])
+pos={
+    "AC": (-2.25,0),        "AD": (-1.4, 1.8),      "AG": (-0.5,2),
+    "BL": (-1.9,1.5),       "FFA": (-1.25,-1.5),    "FSA": (0.75,-2),  
+    "FUA": (0,-2.5),        "FQ": (-1.9,-1),        "GlyP": (1.25,2.5),      
+    "MDR": (-1,0.5),        "MLS": (0.75,-0.1),     "PEP": (1.75,-0.75),
+    "PHE": (0.25,0.65),     "PMX": (2,0.25),        "TET": (0,-1),     
+    "TRI": (-2.25,1),       "UNC": (0.5,1.5)}
 nx.draw(
     G_clstr, 
-    nodelist=G_important_nodes + G_clstr_outer_nodes,
-    pos=nx.shell_layout(G_clstr, [
-        G_important_nodes,
-        G_clstr_outer_nodes]),
+    pos=pos,
     with_labels=True, 
     ax=clstr_ax, 
+    width=list(nx.get_edge_attributes(G_clstr, 'weight').values()),
     font_color="white", 
     font_size=30, 
-    node_size=7000,
-    node_color=[
-        "#D20A2E", "#D20A2E", "#D20A2E",
-        "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA",
-        "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA"])
-nx.draw_networkx_edge_labels(
-    G_clstr, 
-    pos=nx.shell_layout(G_clstr, [
-        G_important_nodes,
-        G_clstr_outer_nodes]),
-    edge_labels=nx.get_edge_attributes(G_clstr, 'weight'),
-    font_size=30,
-    label_pos=0.5,
-    ax=clstr_ax)
+    node_size=7000)
 clstr_ax.set_title("A",
     loc="left",
     fontsize=35,
     weight='bold')
 
-G_super_nodes = set([row[0][0] for row in super_share_matrix.iterrows() if (
-    (row[1].iat[0] > 0) and ((row[0][0] in G_important_nodes) or (row[0][1] in G_important_nodes)))])
+G_super_nodes = set([
+    row[0][0] for row in super_share_matrix.iterrows() if ((row[1].iat[0] > 0))])
 G_super = nx.Graph()
 G_super.add_nodes_from(G_super_nodes)
 G_super.add_weighted_edges_from([
-    row for row in super_share_matrix.reset_index(names=["class 1", "class 2"]).itertuples(index=False,name=None)
-    if (row[2] > 0) and (row[0] > row[1]) and ((row[0] in G_important_nodes) or (row[1] in G_important_nodes))])
+    (row[0][0], row[0][1], row[1].iat[0]) for row in super_share_matrix.iterrows()
+    if (row[1].iat[0] > 0) and (row[0][0] > row[0][1])])
+pos={
+    "AC": (0.65,-2.25),     "AD": (-1.5,2),         "AG": (1.5,1.35),
+    "BAC": (2.25,-0.5),     "BCM": (-2.15,-0.25),   "BL": (1.65,-1.75),
+    "FFA": (-1,-2.5),       "FOF": (2.25,1.65),     "FOM": (-2.5,0.5),
+    "FSA": (2.65,0.35),     "FUA": (2.65,2),        "FQ": (-0.85,-1.5),
+    "GlyP": (2.25,1),       "MDR": (0.35,-1),       "MLS": (1.25,-0.5),
+    "NUC": (-0.5,2.25),     "OXA": (1.25,-2.25),    "PA/PEP": (1.75,2), 
+    "PEP": (2.25,-1.25),    "PHE": (0.65,2),        "PMX": (2.25,-2), 
+    "TET": (-1.5,-1.25),    "TET-C": (-2.25,1.25),  "TRI": (0,-2.25),
+    "UNC": (2,0.35)}
 nx.draw(
     G_super, 
-    nodelist=G_important_nodes + G_super_outer_nodes,
-    pos=nx.shell_layout(G_super, [
-        G_important_nodes,
-        G_super_outer_nodes]),
+    pos=pos,
     with_labels=True, 
     ax=super_ax, 
+    width=list(nx.get_edge_attributes(G_super, 'weight').values()),
     font_color="white", 
     font_size=30, 
-    node_size=7000,
-    node_color=[
-        "#D20A2E", "#D20A2E", "#D20A2E",
-        "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA",
-        "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA",
-        "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA", "#0F52BA"])
-nx.draw_networkx_edge_labels(
-    G_super, 
-    pos=nx.shell_layout(G_super, [
-        G_important_nodes,
-        G_super_outer_nodes]),
-    edge_labels=nx.get_edge_attributes(G_super, 'weight'),
-    font_size=30,
-    label_pos=0.5,
-    ax=super_ax)
+    node_size=7000)
 super_ax.set_title(
     "B",
     loc="left",
     fontsize=35,
     weight='bold')
 plt.savefig(f"inter_class_sim_graph_v{VERSION}.png")
+
+sys.exit()
 
 # Create a custom color palette
 custom_colors = [
