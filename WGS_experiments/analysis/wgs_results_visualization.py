@@ -390,39 +390,47 @@ for graph_type in ["alignment", "share", "imbalance"]:
         "PLM": (2.5,-3),    "PMX": (-2.5,0),        "SUL": (0.5,3),
         "TET": (1.5,0),     "TET-C": (3,3),         "TRI": (2.5,1.25),
         "UNC": (-1.25,-1.25)}
+    
+    weights = np.array(list(nx.get_edge_attributes(G, 'weight').values()))
+    
+    if graph_type == "alignment":
+        width = (np.abs(weights) + 2) * 1.5 
+        edge_color_f = np.vectorize(
+            lambda x: 
+                -3 if np.abs(x) <= np.log(1.5) 
+                else np.sign(x) if np.abs(x) < np.log(10) 
+                else np.sign(x)*2)
+        edge_color = edge_color_f(weights)
+    else:
+        width = (np.abs(weights) * 6) + 4
+        if graph_type == "share":
+            edge_color_f = np.vectorize(
+                lambda x: -3 if x <= 0.05 else 1 if x < 0.9 else 2)
+        else:
+            edge_color_f = np.vectorize(
+                lambda x: 
+                    -3 if np.abs(x) <= 0.05 
+                    else np.sign(x) if np.abs(x) < 0.9
+                    else np.sign(x)*2)
+        edge_color = edge_color_f(weights)
+
     nx.draw(
-        G, 
-        pos=pos,
-        with_labels=True, 
-        connectionstyle="arc3,rad=-0.1",
-        width=
-            (np.abs(list(nx.get_edge_attributes(G, 'weight').values())) + 2) * 1.5 
-            if graph_type == "alignment" 
-            else (np.abs(list(nx.get_edge_attributes(G, 'weight').values())) * 6) + 4,
-        edge_color=
-            (np.ceil(np.abs(list(nx.get_edge_attributes(G, 'weight').values())) / (3 if graph_type == "alignment" else 0.5))
-             *np.sign(list(nx.get_edge_attributes(G, 'weight').values()))
-             +np.full_like(
-                np.array(list(nx.get_edge_attributes(G, 'weight').values())), 
-                np.array(list(nx.get_edge_attributes(G, 'weight').values()),dtype=np.float64)==0)*-3), 
-        edge_cmap=custom_cmap,
-        edge_vmin=-2,
-        edge_vmax=2,
-        ax=ax, 
-        font_size=35, 
-        node_size=12000,
-        node_color='black',
-        font_color='white',
+        G=G, 
         arrows=True,
-        arrowsize=35)
-    # nx.draw_networkx_edge_labels(
-    #     G, 
-    #     pos=pos,
-    #     edge_labels=nx.get_edge_attributes(G, 'weight'),
-    #     connectionstyle="arc3,rad=0.15",
-    #     font_size=25,
-    #     label_pos=0.5,
-    #     ax=ax)
+        arrowsize=35,
+        ax=ax, 
+        connectionstyle="arc3,rad=-0.1",
+        edge_cmap=custom_cmap,
+        edge_color=edge_color, 
+        edge_vmax=2,
+        edge_vmin=-2,
+        font_color='white',
+        font_size=35, 
+        node_color='black',
+        node_size=12000,
+        pos=pos,
+        width=width,
+        with_labels=True)
     
     if graph_type == "alignment":
         fig.savefig(f"most_freq_amr_switch_relative_to_alignment_graph_{model}_{ident}.png")
@@ -430,6 +438,7 @@ for graph_type in ["alignment", "share", "imbalance"]:
         fig.savefig(f"most_freq_share_label_with_deeparg_graph_{model}_{ident}.png")
     elif graph_type == "imbalance":
         fig.savefig(f"most_freq_largest_super_graph_{model}_{ident}.png")
+    heatmap_df.to_csv(f"{graph_type}.csv")
 
     continue
     ax_left = fig.add_axes((0.12, 0.12, 0.75, 0.84))
