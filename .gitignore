@@ -40,3 +40,5 @@ WGS_experiments/samples/deeparg_hit_count.tsv
 database/*.png
 database/blast_db.sh
 database/blast_results.txt
+test/concat_experiments/frame*.fasta
+test/concat_experiments/clean_ORFs.fa
