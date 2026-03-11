@@ -31,15 +31,15 @@ OUTPUT_COLUMNS = [
     ]
 
 
-def get_potential_frameshifting_target_windows(
+def get_target_window_alignments(
         orf_windows: pd.DataFrame, orf_sequences: dict) -> pd.DataFrame:
-    """Figure out which target windows can change the reading frame of the source sequence."""  # noqa: E501
+    """Figure out alignments between target windows and database."""
     SeqIO.write(
         sequences=[
             SeqRecord(
                 seq=seq[1][1][
                     orf_windows.at[seq[0], "window_start"] :
-                    orf_windows.at[seq[0], "window_end"] + 1],
+                    orf_windows.at[seq[0], "window_trunc_end"] + 1],
                 id=seq[0],
                 description=""
             )
@@ -67,6 +67,7 @@ def get_potential_frameshifting_target_windows(
         filepath_or_buffer=og_align, delimiter="\t", header=None,
         index_col=[0, 1], names=OUTPUT_COLUMNS[2:]
     )
+
     # Default scoring matrix is BLOSUM62, gap open = 11 and gap extended = 1
     alignment_results["gap_score"] = alignment_results.apply(
         lambda x: (
@@ -80,10 +81,12 @@ def get_potential_frameshifting_target_windows(
         axis=1,
     )
 
-    # Traceback ends if it reaches zero
-    return alignment_results.loc[
-        alignment_results["gap_score"] < alignment_results["score"]
-    ]
+    return alignment_results
+
+    # # Traceback ends if it reaches zero
+    # return alignment_results.loc[
+    #     alignment_results["gap_score"] < alignment_results["score"]
+    # ]
 
 
 def get_from_nuc(index: str, from_codon: int) -> int:
@@ -143,12 +146,15 @@ def get_target_window_domains(orf_windows: pd.DataFrame) -> pd.DataFrame:
     all_hitdata_df["Window End"] = all_hitdata_df.apply(
         lambda x: orf_windows.at[x.name[0], "window_end"], axis=1
     )
+    all_hitdata_df["Window Trunc End"] = all_hitdata_df.apply(
+        lambda x: orf_windows.at[x.name[0], "window_trunc_end"], axis=1
+    )
 
     return all_hitdata_df
 
 
 def get_og_source_alignments() -> pd.DataFrame:
-    """Get original source sequence alignment scores."""
+    """Get original source sequence alignments along with e-value and raw scores."""  # noqa: E501
     og_align = f"{ALIGNMENT_OUTPUT_DIR}OG_source_align.tsv"
     alignment_cmd = f"""
         eval "$(conda shell.bash hook)" && conda activate {DEEPARG_ENV} && \
@@ -166,10 +172,13 @@ def get_og_source_alignments() -> pd.DataFrame:
     )
 
 
-def get_other_source_alignments(
-    frame: int, direction: str, og_source_alignments: pd.DataFrame
+def get_frameshifted_source_alignments(
+    frame: int,
+    direction: str,
+    og_source_alignments: pd.DataFrame,
+    frame_dir: int,
 ) -> pd.DataFrame:
-    """Get all source sequence alignment scores."""
+    """Get frameshifted source sequence alignments along with e-value and raw scores."""  # noqa: E501
     # Using a sequence identity of 5% and an e-value of 1000 to allow for
     # scenarios where the concatenated sequence identity and e-value are mostly
     # driven by the source sequence
@@ -195,19 +204,6 @@ def get_other_source_alignments(
         index_col=[0, 1], names=OUTPUT_COLUMNS[2:]
     )
 
-    # In transeq, reverse reading frames are the reverse-complement of the
-    # forward reading frame. In DIAMOND, reverse reading frames are the forward
-    # reading frames of the reverse-complement of the original sequence.
-    # Thus, -2 in transeq is -3 in DIAMOND, and -2 in DIAMOND is -3 in transeq
-    frame_dir = (
-        frame
-        if direction == "FOR"
-        else -1
-        if frame == 1
-        else -2
-        if frame == 3  # noqa: PLR2004
-        else -3
-    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
 
@@ -229,30 +225,80 @@ def get_other_source_alignments(
         ]
 
     # Default scoring matrix is BLOSUM62, gap open = 11 and gap extended = 1
+    # However, this time we only care about gap extended since gap open is
+    # already taken care of with the frameshifting_target_window
     if direction == "FOR":
         alignment_results["gap_score"] = alignment_results.apply(
-            lambda x: (
-                (x["qstart"] - 1)
-                + (10 if x["qstart"] > 1 else 0)
-            ),
-            axis=1,
+            lambda x: (x["qstart"] - 1), axis=1,
         )
     else:
         alignment_results["gap_score"] = alignment_results.apply(
-            lambda x: (
-                (x["qlen"] - x["qend"])
-                + (10 if x["qlen"] - x["qend"] > 0 else 0)
-            ),
-            axis=1,
+            lambda x: (x["qlen"] - x["qend"]), axis=1,
         )
 
-    # Traceback ends if it reaches zero
     return alignment_results
 
 
+def which_target_can_frameshift_source(
+    frameshifted_source_alignments: pd.DataFrame,
+    target_window_alignments: pd.DataFrame,
+    n: int,
+    ka_K: np.float64,  # noqa: N803
+    ka_lambda: np.float64,
+    frame_dir: int
+) -> pd.DataFrame:
+    """Figure out whether a target window and a source sequence can combine and cause alignment frameshifting.
+
+    Arguments:
+        frameshifted_source_alignments: alignments to source sequences that have been frameshifted from original
+        target_window_alignments: alignments to target window sequences
+        n: length of database
+        ka_K: Karlin-Altschul K parameter
+        ka_lambda: Karlin-Altschul lambda parameter
+        frame_dir: reading frame and direction of alignment
+
+    """  # noqa: E501
+    # Let's start off checking if target windows and frameshift sources align
+    # to same reference at same reading frame
+
+    target_window_alignments = target_window_alignments.loc[
+        target_window_alignments["qframe"] == frame_dir
+    ]
+
+    frameshifted_source_alignments["potential_targets"] = (
+        frameshifted_source_alignments.apply(
+            lambda x: (
+                target_window_alignments.loc[pd.IndexSlice[:, x.name[1]], :]
+                if x.name[1]
+                in target_window_alignments.index.get_level_values(1).to_list()
+                else ""
+            ),
+            axis=1,
+        )
+    )
+    frameshifted_source_alignments = frameshifted_source_alignments.loc[
+        ~frameshifted_source_alignments["potential_targets"].isin([""])
+    ]
+    frameshifted_source_alignments.to_csv(
+        "test.csv", mode="a" if frame_dir != 1 else "w"
+    )
+
+
+# The current target windows are not all multiples of three, but what gets
+# appended will be. I just don't know how Kamala made that work, but I'll assume
+# that she removed the last one or two nucleotides.
 orf_windows = pd.read_csv(
     filepath_or_buffer="best_windows.tsv", delimiter="\t", header=0, index_col=0
 )
+orf_windows["window_trunc_end"] = orf_windows.apply(
+    lambda x: (
+        int((x["window_end"] - x["window_start"] + 1) / 3) * 3
+        + x["window_start"]
+        - 1
+    ),
+    axis=1,
+)
+
 orf_sequences = {
     rec.id: (len(rec), rec.seq)
     for rec in FastaIO.FastaIterator(source="clean_ORFs.fa")
@@ -261,7 +307,7 @@ orf_sequences = {
 orf_windows["length"] = orf_windows.apply(
     lambda x: orf_sequences[x.name][0], axis=1
 )
-frameshifting_target_window = get_potential_frameshifting_target_windows(
+target_window_alignments = get_target_window_alignments(
     orf_windows, orf_sequences
 )
 target_window_domains = get_target_window_domains(orf_windows)
@@ -290,15 +336,35 @@ with warnings.catch_warnings():
     )
     ka_K = np.nanmean(e / (m * n * np.exp(-1 * ka_lambda * s)))  # noqa: N816
 
-frameshifting_target_window.to_csv("frameshifting_target_window.csv")
+target_window_alignments.to_csv("target_window_alignments.csv")
 target_window_domains.to_csv("target_window_domains.csv")
 og_source_alignments.to_csv("og_source_alignments.csv")
-og_source_alignments.loc[og_source_alignments.index.duplicated(False)].to_csv("test.csv")
 for direction in ["FOR", "REV"]:
     for frame in range(1, 4):
-        other_source_alignments = get_other_source_alignments(
-            frame, direction, og_source_alignments
+        # In transeq, reverse reading frames are the reverse-complement of the
+        # forward reading frame. In DIAMOND, reverse reading frames are the forward
+        # reading frames of the reverse-complement of the original sequence.
+        # Thus, -2 in transeq is -3 in DIAMOND, and -2 in DIAMOND is -3 in transeq
+        frame_dir = (
+            frame
+            if direction == "FOR"
+            else -1
+            if frame == 1
+            else -2
+            if frame == 3  # noqa: PLR2004
+            else -3
         )
-        other_source_alignments.to_csv(
+        frameshifted_source_alignments = get_frameshifted_source_alignments(
+            frame, direction, og_source_alignments, frame_dir
+        )
+        frameshifted_source_alignments.to_csv(
             f"frame_{frame}_{direction}_source_align.csv"
+        )
+        which_target_can_frameshift_source(
+            frameshifted_source_alignments,
+            target_window_alignments,
+            n,
+            ka_K,
+            ka_lambda,
+            frame_dir,
         )
