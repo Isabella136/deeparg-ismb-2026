@@ -1,150 +1,161 @@
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-
-from pyvis.network import Network
-
+import sys
 from itertools import product
 
+import matplotlib.pyplot as plt
 import networkx as nx
-import seaborn as sn
-import pandas as pd
 import numpy as np
-import sys
-
-def make_label_share_matrix(df: pd.DataFrame, classes: pd.Series, label: str) -> pd.DataFrame:
-    labels = df[label].drop_duplicates().to_list()
-    
-
-    label_share = pd.DataFrame(
-        data=np.full(shape=len(classes)**2,fill_value=0),
-        index=pd.MultiIndex.from_product([classes, classes]),
-        columns=["count"])
-    
-    for l in labels:
-        class_list = df[df[label] == l]["amr class"].to_list()
-        coords = list(product(class_list, class_list))
-        for x, y in coords:
-            label_share.at[(x, y), "count"] += 1
-    
-    return label_share
-
-def make_label_adj_matrix(df: pd.DataFrame, classes: pd.Series, label: str) -> pd.DataFrame:
-    labels = df[label].drop_duplicates().to_list()
-    
-
-    label_share = pd.DataFrame(
-        data=np.full(shape=(len(classes), len(classes)),fill_value=0),
-        index=classes,
-        columns=classes)
-    
-    for l in labels:
-        class_list = df[df[label] == l]["amr class"].to_list()
-        coords = list(product(class_list, class_list))
-        for x, y in coords:
-            label_share.at[x, y] += 1
-    
-    return label_share
+import pandas as pd
+import seaborn as sns
+from matplotlib.collections import LineCollection, PatchCollection
+from matplotlib.patches import Circle
 
 VERSION = sys.argv[1]
 FEATURE_DATA = f"v{VERSION}_feature_data.csv"
 
-abbrev_file = open("amr_abbrev.csv", "r")
-amr_abbrev = dict()
-for line in abbrev_file.readlines():
-    row = line.strip().split(",")
-    amr_abbrev.update({row[0]: row[1]})
-abbrev_file.close()
 
-feature = pd.read_csv(FEATURE_DATA, header=0, index_col=0)
-feature["amr class"] = feature.apply(
-    lambda x: amr_abbrev[x["amr class"]], axis=1)
+def get_shared_label_counts(
+    multi_class_label_rows: pd.DataFrame,
+    label_type: str,
+    classes: set,
+) -> pd.DataFrame:
+    """Get counts of labels shared between two classes."""
+    # Get list of labels shared by two or more classes
+    labels_series = multi_class_label_rows[label_type]
+    labels_list_dedup = labels_series.drop_duplicates().to_list()
+
+    # Construct dataframe containg counts of labels shared between two classes
+    shared_label_counts = pd.DataFrame(
+        data=np.full(shape=len(classes) ** 2, fill_value=0),
+        index=pd.MultiIndex.from_product([classes, classes]),
+        columns=["count"],
+    )
+    for label in labels_list_dedup:
+        # List of classes containing current label
+        class_list = multi_class_label_rows[labels_series == label][
+            "amr class"
+        ].to_list()
+
+        # Make index coords from x-product of classes containing current label
+        coords = list(product(class_list, class_list))
+        for x, y in coords:
+            # Only add count if both classes are relevant
+            if len({x, y}.intersection(classes)) == 2:  # noqa: PLR2004
+                shared_label_counts.at[(x, y), "count"] += 1
+
+    # Return dataframe
+    return shared_label_counts
+
+
+# Retrieve feature data, and replace amr class with abbreviation
+amr_abbrev = pd.read_csv("amr_abbrev.csv", header=None, index_col=0)
+feature_data = pd.read_csv(FEATURE_DATA, header=0, index_col=0)
+feature_data["amr class"] = feature_data.apply(
+    lambda x: amr_abbrev.at[x["amr class"], 1], axis=1)
 
 # Get class count for DeepARG database from feature data
-class_count_df = (feature
+class_count_df = (
+    feature_data
     .reset_index(drop=True)[["amr class", f"amr class v{VERSION} count"]]
     .drop_duplicates()
-    .reset_index(drop=True))
+    .reset_index(drop=True)
+)
 
 # Get clstr|class count for DeepARG database from feature data
-clstr_class_count_df = (pd.DataFrame(feature
-        .reset_index()[["amr class", f"v{VERSION}-only cluster index"]]
-        .value_counts(dropna=False, sort=False))
-    .reset_index(names=["amr class", "clstr"]))
+clstr_class_count_df = pd.DataFrame(
+    feature_data.reset_index()[
+        ["amr class", f"v{VERSION}-only cluster index"]
+    ].value_counts(dropna=False, sort=False)
+).reset_index(names=["amr class", "clstr"])
 
 # Get superfamily|class count for DeepARG database from feature data
 # (Counting combos in multi-superfamily features as their own domain)
-combo_superfamily_class_count_df = (pd.DataFrame(feature
-        .reset_index()[["amr class", "superfamily(ies) id(s)"]]
-        .value_counts(dropna=True, sort=False))
-    .reset_index(names=["amr class", "superfamily"]))
-
-clstr_stats = pd.DataFrame(
-    data={
-        "max": clstr_class_count_df.groupby("amr class")["count"].max()},
-    index=clstr_class_count_df["amr class"].drop_duplicates().sort_values())
-clstr_stats.reset_index(names="amr class", inplace=True)
-clstr_stats.insert(
-    loc=0,
-    column="label",
-    value="clstr|amr")
-combo_super_stats = pd.DataFrame(
-    data={
-        "max": combo_superfamily_class_count_df.groupby(by="amr class")["count"].max()},
-    index=combo_superfamily_class_count_df["amr class"].drop_duplicates().sort_values())
-combo_super_stats.reset_index(names="amr class", inplace=True)
-combo_super_stats.insert(
-    loc=0,
-    column="label",
-    value="super|amr")
-sorted_class = (class_count_df
-    .sort_values(
-        by=f"amr class v{VERSION} count", 
-        ascending=False, 
-        ignore_index=True)["amr class"])
-sort_class_by_size = np.vectorize(lambda x: sorted_class[sorted_class==x].index[0])
-label_stats = pd.DataFrame(
-    data= pd.concat([
-        clstr_stats,
-        combo_super_stats], join='inner'),
-    columns=["label", "amr class", "max"]).sort_values(
-        by="amr class",
-        key=sort_class_by_size)
-label_stats["max ratio"] = label_stats.apply(
-    lambda x: float(x["max"])/float(
-        class_count_df.loc[class_count_df["amr class"]==x["amr class"]][f"amr class v{VERSION} count"].iat[0]),
-    axis=1)
-
-# We need to combine clstr_class_count and combo_superfamily_class_count
-# s.t. we know which label is clstr and which is super:
-clstr_class_count_df.insert(
-    loc=0,
-    column="label",
-    value="clstr|amr")
-combo_superfamily_class_count_df.insert(
-    loc=0,
-    column="label",
-    value="super|amr")
-label_distr_df = pd.DataFrame(
-    data= pd.concat([
-        clstr_class_count_df,
-        combo_superfamily_class_count_df], join='inner'),
-    columns=["label", "amr class", "count"]).sort_values(
-        by="amr class",
-        key=sort_class_by_size)
-label_distr_df["ratio"] = label_distr_df.apply(
-    lambda x: float(x["count"])/float(
-        class_count_df.loc[class_count_df["amr class"]==x["amr class"]][f"amr class v{VERSION} count"].iat[0]),
-    axis=1)
+combo_super_class_count_df = pd.DataFrame(
+    feature_data.reset_index()[
+        ["amr class", "superfamily(ies) id(s)"]
+    ].value_counts(dropna=True, sort=False)
+).reset_index(names=["amr class", "superfamily"])
 
 # Create figure 1
 plt.figure(figsize=(40, 20))
-label_ax = plt.axes((0.05,0.1,0.92,0.42))
-feature_ax = plt.axes((0.05,0.55,0.92,0.42), sharex=label_ax)
-cb_palette = sn.color_palette("colorblind")
+label_ax = plt.axes((0.05, 0.1, 0.92, 0.42))
+feature_ax = plt.axes((0.05, 0.55, 0.92, 0.42), sharex=label_ax)
+cb_palette = sns.color_palette("colorblind")
+
+# Find the size of the biggest cluster per class
+clstr_max = pd.DataFrame(
+    data={"max": clstr_class_count_df.groupby("amr class")["count"].max()},
+    index=clstr_class_count_df["amr class"].drop_duplicates().sort_values(),
+)
+clstr_max = clstr_max.reset_index(names="amr class")
+
+# Find the size of the biggest superfamily per class
+combo_super_max = pd.DataFrame(
+    data={
+        "max": combo_super_class_count_df.groupby(by="amr class")["count"].max()
+    },
+    index=combo_super_class_count_df["amr class"]
+    .drop_duplicates()
+    .sort_values(),
+)
+combo_super_max = combo_super_max.reset_index(names="amr class")
+
+# Create vectorize function that sorts classes by gene sequence count
+sorted_class = class_count_df.sort_values(
+    by=f"amr class v{VERSION} count", ascending=False, ignore_index=True
+)["amr class"]
+sort_class_by_size = np.vectorize(
+    lambda x: sorted_class[sorted_class == x].index[0]
+)
+
+# We need to combine clstr_max and combo_super_max s.t. we know which label is
+# a cluster and which is superfamily. Additionally, we need to sort classes by
+# gene sequence count
+clstr_max.insert(loc=0, column="label", value="clstr|amr")
+combo_super_max.insert(loc=0, column="label", value="super|amr")
+label_max = pd.DataFrame(
+    data=pd.concat([clstr_max, combo_super_max], join="inner"),
+    columns=["label", "amr class", "max"],
+).sort_values(by="amr class", key=sort_class_by_size)
+
+# We also need to combine clstr_class_count and combo_superfamily_class_count
+# s.t. we know which label is a cluster and which is superfamily. Additionally,
+# we need to sort classes by gene sequence count
+clstr_class_count_df.insert(loc=0, column="label", value="clstr|amr")
+combo_super_class_count_df.insert(loc=0, column="label", value="super|amr")
+label_count_df = pd.DataFrame(
+    data=pd.concat(
+        [clstr_class_count_df, combo_super_class_count_df], join="inner"
+    ),
+    columns=["label", "amr class", "count"],
+).sort_values(by="amr class", key=sort_class_by_size)
+
+# We actually need to plot label counts as ratios of the total class size
+label_max["max ratio"] = label_max.apply(
+    lambda x: (
+        float(x["max"])
+        / float(
+            class_count_df.loc[class_count_df["amr class"] == x["amr class"]][  # noqa: PD009
+                f"amr class v{VERSION} count"
+            ].iat[0]
+        )
+    ),
+    axis=1,
+)
+label_count_df["ratio"] = label_count_df.apply(
+    lambda x: (
+        float(x["count"])
+        / float(
+            class_count_df.loc[class_count_df["amr class"] == x["amr class"]][  # noqa: PD009
+                f"amr class v{VERSION} count"
+            ].iat[0]
+        )
+    ),
+    axis=1,
+)
 
 # Make bar plot of median ratio and strip plot of max ratio
-sn.barplot(
-    data=label_distr_df,
+sns.barplot(
+    data=label_count_df,
     x="amr class",
     y="ratio",
     hue="label",
@@ -154,9 +165,10 @@ sn.barplot(
     palette=cb_palette[:2],
     errorbar=None,
     alpha=0.5,
-    legend=True)
-sn.stripplot(
-    data=label_stats,
+    legend=True,
+)
+sns.stripplot(
+    data=label_max,
     x="amr class",
     y="max ratio",
     hue="label",
@@ -165,44 +177,49 @@ sn.stripplot(
     dodge=True,
     size=15,
     palette=cb_palette[:2],
-    legend=True)
+    legend=True,
+)
+
+# x-axis is list of classes sorted by size
+label_ax.set_xlabel(xlabel="AMR Class", fontsize=35, loc="center", labelpad=0)
 label_ax.set_xticks(
-    ticks=label_ax.get_xticks(), 
-    labels=label_ax.get_xticklabels(), 
-    fontsize=30, 
-    rotation_mode="anchor", 
+    ticks=label_ax.get_xticks(),
+    labels=label_ax.get_xticklabels(),
+    fontsize=30,
+    rotation_mode="anchor",
     rotation=45,
-    ha='right',
-    va='center')
+    ha="right",
+    va="center",
+)
+
+# y-axis is sequence count ratios, with upper limit set to 1.1 so that y = 1
+# doesn't intersect with top of plot. Axis title is set later in the code
+label_ax.set_ylabel(ylabel="")
 label_ax.set_yticks(
     ticks=label_ax.get_yticks(),
     labels=label_ax.get_yticklabels(),
     fontsize=30,
-    va='center')
-label_ax.set_ylim(
-    bottom=0, top=1.1)
-label_ax.set_xlabel(
-    xlabel="AMR Class",
-    fontsize=35,
-    loc='center',
-    labelpad=0)
-label_ax.set_ylabel(ylabel="")
-plt.gcf().text(
-    0.008, 0.31, f"Sequence Count Ratio", rotation=90, fontsize=35, va='center')
-label_ax.set_title(
-    "B",
-    loc="left",
-    fontsize=35,
-    weight='bold')
+    va="center",
+)
+label_ax.set_ylim(bottom=0, top=1.1)
+
+# Set title and legend
+label_ax.set_title("B", loc="left", fontsize=35, weight="bold")
 label_ax.legend(
     handles=label_ax.legend_.legend_handles,
-    labels=["cluster median", "superfamily median", "cluster max", "superfamily max"],
+    labels=[
+        "cluster median",
+        "superfamily median",
+        "cluster max",
+        "superfamily max",
+    ],
     fontsize=30,
-    loc="upper left")
+    loc="upper left",
+)
 
-# Make histogram of sequence counts
-hist = sn.histplot(
-    data=feature,
+# Make histogram of sequence counts, and label actual count on top of bar
+hist = sns.histplot(
+    data=feature_data,
     x="amr class",
     ax=feature_ax,
     legend=True,
@@ -212,202 +229,448 @@ hist = sn.histplot(
     common_norm=False,
     shrink=0.8,
     color="black",
-    )
+)
 hist.bar_label(
-    hist.containers[0], 
+    hist.containers[0],
     labels=hist.containers[0].datavalues,
     padding=2,
-    fontsize=27)
+    fontsize=27,
+)
+
+# y-axis is sequence count. Axis title is set later in the code
+feature_ax.set_ylabel(ylabel="", fontsize=35)
 feature_ax.set_yticks(
     ticks=feature_ax.get_yticks(),
-    labels= feature_ax.get_yticklabels(),
-    fontsize=30)
-feature_ax.set_ylabel(
-    ylabel="",
-    fontsize=35)
-plt.gcf().text(
-    0.008, 0.77, "Sequence Count", rotation=90, fontsize=35, va='center')
-feature_ax.tick_params(
-    axis='x', 
-    labelbottom=False)
-feature_ax.set_xlabel(
-    xlabel="")
-feature_ax.set_title(
-    "A",
-    loc="left",
-    fontsize=35,
-    weight='bold')
+    labels=feature_ax.get_yticklabels(),
+    fontsize=30,
+)
+
+# Since top feature_ax plot is vertically aligned to bottom label_ax plot, we
+# don't need to label feature_ax x-axis, nor do we need tick marks
+feature_ax.set_xlabel(xlabel="")
+feature_ax.tick_params(axis="x", labelbottom=False)
+
+# Set title
+feature_ax.set_title("A", loc="left", fontsize=35, weight="bold")
+
+# We don't want a gap between y-axis line and MDR bar
 label_ax.margins(x=0)
+
+# We want y-axis labels for both graphs to be vertically aligned
+plt.gcf().text(
+    0.008, 0.31, "Sequence Count Ratio", rotation=90, fontsize=35, va="center"
+)
+plt.gcf().text(
+    0.008, 0.77, "Sequence Count", rotation=90, fontsize=35, va="center"
+)
+
+# Let's save and be done with it
 plt.savefig(f"db_distr_v{VERSION}.png")
 
-# Now create adjacent matrix and edge tuples for shared clusters and superfamily
-class_per_clstr_count_df = (pd.DataFrame(
-        clstr_class_count_df["clstr"].value_counts(dropna=True, sort=False))
-    .reset_index(names="clstr"))
-multi_class_clstr = class_per_clstr_count_df.loc[class_per_clstr_count_df["count"] > 1]["clstr"]
-multi_class_clstr_rows = (clstr_class_count_df.loc[clstr_class_count_df["clstr"]
-    .apply(lambda x: x in multi_class_clstr.to_list())])
-clstr_share_matrix = make_label_share_matrix(
-    multi_class_clstr_rows, sorted_class, "clstr")
-clstr_adj_matrix = make_label_adj_matrix(
-    multi_class_clstr_rows, sorted_class, "clstr")
-
-class_per_super_count_df = (pd.DataFrame(
-        combo_superfamily_class_count_df["superfamily"].value_counts(dropna=True, sort=False))
-    .reset_index(names="superfamily"))
-multi_class_supers = class_per_super_count_df.loc[class_per_super_count_df["count"] > 1]["superfamily"]
-multi_class_super_rows = (combo_superfamily_class_count_df.loc[combo_superfamily_class_count_df["superfamily"]
-        .apply(lambda x: x in multi_class_supers.to_list())])
-super_share_matrix = make_label_share_matrix(
-    multi_class_super_rows, sorted_class, "superfamily")
-super_adj_matrix = make_label_adj_matrix(
-    multi_class_super_rows, sorted_class, "superfamily")
-
-# Start with edge and node graph
+# Create figure 2
 plt.figure(figsize=(15, 30))
-super_ax = plt.axes((0.02,0.01,0.96,0.47))
-clstr_ax = plt.axes((0.02,0.50,0.96,0.47))
+super_ax = plt.axes((0.01, 0.0, 0.98, 0.49))
+clstr_ax = plt.axes((0.01, 0.49, 0.98, 0.49))
 
-G_clstr_nodes = set([
-    row[0][0] for row in clstr_share_matrix.iterrows() if ((row[1].iat[0] > 0))])
-G_clstr = nx.Graph()
-G_clstr.add_nodes_from(G_clstr_nodes)
-G_clstr.add_weighted_edges_from([
-    (row[0][0], row[0][1], row[1].iat[0]) for row in clstr_share_matrix.iterrows()
-    if (row[1].iat[0] > 0) and (row[0][0] > row[0][1])])
-pos={
-    "AC": (-2.25,0),        "AD": (-1.4, 1.8),      "AG": (-0.5,2),
-    "BL": (-1.9,1.5),       "FFA": (-1.25,-1.5),    "FSA": (0.75,-2),  
-    "FUA": (0,-2.5),        "FQ": (-1.9,-1),        "GlyP": (1.25,2.5),      
-    "MDR": (-1,0.5),        "MLS": (0.75,-0.1),     "PEP": (1.75,-0.75),
-    "PHE": (0.25,0.65),     "PMX": (2,0.25),        "TET": (0,-1),     
-    "TRI": (-2.25,1),       "UNC": (0.5,1.5)}
-nx.draw(
-    G_clstr, 
-    pos=pos,
-    with_labels=True, 
-    ax=clstr_ax, 
-    width=list(nx.get_edge_attributes(G_clstr, 'weight').values()),
-    font_color="white", 
-    font_size=30, 
-    node_size=7000)
-clstr_ax.set_title("A",
-    loc="left",
-    fontsize=35,
-    weight='bold')
+# We will only include classes that will have alignment hits in WGS experiments
+interesting_nodes = {
+    "AG",
+    "AG/AC",
+    "BL",
+    "BCM",
+    "DAP",
+    "FFA",
+    "FQ",
+    "GlyP",
+    "MDR",
+    "MLS",
+    "NI",
+    "NUC",
+    "OXA",
+    "PEP",
+    "PHE",
+    "PLM",
+    "PMX",
+    "SUL",
+    "TET",
+    "TET-C",
+    "TRI",
+    "UNC",
+}
 
-G_super_nodes = set([
-    row[0][0] for row in super_share_matrix.iterrows() if ((row[1].iat[0] > 0))])
-G_super = nx.Graph()
-G_super.add_nodes_from(G_super_nodes)
-G_super.add_weighted_edges_from([
-    (row[0][0], row[0][1], row[1].iat[0]) for row in super_share_matrix.iterrows()
-    if (row[1].iat[0] > 0) and (row[0][0] > row[0][1])])
-pos={
-    "AC": (0.65,-2.25),     "AD": (-1.5,2),         "AG": (1.5,1.35),
-    "BAC": (2.25,-0.5),     "BCM": (-2.15,-0.25),   "BL": (1.65,-1.75),
-    "FFA": (-1,-2.5),       "FOF": (2.25,1.65),     "FOM": (-2.5,0.5),
-    "FSA": (2.65,0.35),     "FUA": (2.65,2),        "FQ": (-0.85,-1.5),
-    "GlyP": (2.25,1),       "MDR": (0.35,-1),       "MLS": (1.25,-0.5),
-    "NUC": (-0.5,2.25),     "OXA": (1.25,-2.25),    "PA/PEP": (1.75,2), 
-    "PEP": (2.25,-1.25),    "PHE": (0.65,2),        "PMX": (2.25,-2), 
-    "TET": (-1.5,-1.25),    "TET-C": (-2.25,1.25),  "TRI": (0,-2.25),
-    "UNC": (2,0.35)}
-nx.draw(
-    G_super, 
-    pos=pos,
-    with_labels=True, 
-    ax=super_ax, 
-    width=list(nx.get_edge_attributes(G_super, 'weight').values()),
-    font_color="white", 
-    font_size=30, 
-    node_size=7000)
-super_ax.set_title(
-    "B",
-    loc="left",
-    fontsize=35,
-    weight='bold')
-plt.savefig(f"inter_class_sim_graph_v{VERSION}.png")
-
-sys.exit()
-
-# Create a custom color palette
-custom_colors = [
-'#D20A2E', # first color
-'#d9d9d9', # middle color
-'#0F52BA' # last color
+# Find clusters shared across two or more classes
+class_per_clstr_count_df = pd.DataFrame(
+    clstr_class_count_df["clstr"].value_counts(dropna=True, sort=False)
+).reset_index(names="clstr")
+multi_class_clstr = class_per_clstr_count_df.loc[
+    class_per_clstr_count_df["count"] > 1
+]["clstr"].to_list()
+multi_class_clstr_rows = clstr_class_count_df.loc[
+    clstr_class_count_df["clstr"].isin(multi_class_clstr)
 ]
-custom_cmap = LinearSegmentedColormap.from_list("custom_gradient", custom_colors)
-custom_cmap.set_bad(color="white")
 
-# Now do heatmap
-plt.figure(figsize=(40, 20))
-clstr_ax = plt.axes((0.05,0.07,0.4,0.86))
-super_ax = plt.axes((0.55,0.07,0.4,0.86))
-cbar = plt.axes((0.95, 0.15, 0.02, 0.7))
+# Get counts of clusters shared between two classes
+clstr_share_matrix = get_shared_label_counts(
+    multi_class_clstr_rows, "clstr", interesting_nodes
+)
 
-sn.heatmap(
-    data=clstr_adj_matrix,
-    #mask=np.triu(np.ones_like(clstr_adj_matrix)),
-    vmax=9,
-    annot=True,
-    center=0,
-    cmap=custom_cmap,
+# Create node graph from set of classes that actually do share clusters
+G_clstr = nx.DiGraph()
+G_clstr_nodes = {
+    row[0][0]
+    for row in clstr_share_matrix.iterrows()
+    if (row[1].iat[0] > 0)  # noqa: PD009
+}
+G_clstr.add_nodes_from(G_clstr_nodes)
+
+# Specify a specific direction for edges. Only matters becaus edges have a
+# counterclockwise curve, and certain edge orientations heavily overlap with
+# nodes
+G_clstr_edges = [
+    ("FFA", "FQ"),
+    ("MDR", "PHE"),
+    ("MLS", "PHE"),
+    ("MDR", "TRI"),
+    ("PMX", "PEP"),
+    ("MDR", "TET"),
+    ("MLS", "TET"),
+    ("TET", "FFA"),
+    ("UNC", "MDR"),
+    ("MLS", "UNC"),
+    ("AG", "UNC"),
+    ("UNC", "GlyP"),
+    ("UNC", "PHE"),
+    ("MDR", "BL"),
+    ("MDR", "AG"),
+    ("MDR", "FQ"),
+    ("MDR", "FFA"),
+    ("MDR", "MLS"),
+]
+
+# Add edges and weights (shared cluster count) to node graph
+G_clstr.add_weighted_edges_from([
+    (row[0], row[1], int(clstr_share_matrix.at[row, "count"]))
+    for row in G_clstr_edges
+])
+
+# Specify a specific position for each node. Based on class specificity.
+pos = {
+    "AG": (
+        np.sin(np.deg2rad(3 * 36)) * 2.00,
+        np.cos(np.deg2rad(3 * 36)) * 2.00,
+    ),
+    "BL": (
+        np.sin(np.deg2rad(0 * 36)) * 1.25,
+        np.cos(np.deg2rad(0 * 36)) * 1.25,
+    ),
+    "FFA": (
+        np.sin(np.deg2rad(5 * 36)) * 2.00,
+        np.cos(np.deg2rad(5 * 36)) * 2.00,
+    ),
+    "FQ": (
+        np.sin(np.deg2rad(4 * 36)) * 2.00,
+        np.cos(np.deg2rad(4 * 36)) * 2.00,
+    ),
+    "GlyP": (
+        np.sin(np.deg2rad(8 * 36)) * 2.00,
+        np.cos(np.deg2rad(8 * 36)) * 2.00,
+    ),
+    "MDR": (
+        np.sin(np.deg2rad(135)) * 0.50,
+        np.cos(np.deg2rad(135)) * 0.50
+    ),
+    "MLS": (
+        np.sin(np.deg2rad(9 * 36)) * 1.25,
+        np.cos(np.deg2rad(9 * 36)) * 1.25,
+    ),
+    "PEP": (
+        np.sin(np.deg2rad(2 * 36)) * 2.00,
+        np.cos(np.deg2rad(2 * 36)) * 2.00,
+    ),
+    "PHE": (
+        np.sin(np.deg2rad(7 * 36)) * 2.00,
+        np.cos(np.deg2rad(7 * 36)) * 2.00,
+    ),
+    "PMX": (
+        np.sin(np.deg2rad(2 * 36)) * 2.75,
+        np.cos(np.deg2rad(2 * 36)) * 2.75,
+    ),
+    "TET": (
+        np.sin(np.deg2rad(6 * 36)) * 2.00,
+        np.cos(np.deg2rad(6 * 36)) * 2.00,
+    ),
+    "TRI": (
+        np.sin(np.deg2rad(1 * 36)) * 2.75,
+        np.cos(np.deg2rad(1 * 36)) * 2.75,
+    ),
+    "UNC": (
+        np.sin(np.deg2rad(-45)) * 0.50,
+        np.cos(np.deg2rad(-45)) * 0.50
+    ),
+}
+
+# Specify class specificity with circles
+clstr_ax.add_collection(
+    PatchCollection(
+        [
+            Circle(xy=(0, 0), radius=0.875, alpha=0.15),
+            Circle(xy=(0, 0), radius=1.625, alpha=0.15),
+            Circle(xy=(0, 0), radius=2.375, alpha=0.15),
+            Circle(xy=(0, 0), radius=3.125, alpha=0.15),
+        ],
+        alpha=0.15,
+    )
+)
+
+# Separate unrelated classes with lines
+clstr_ax.add_collection(
+    LineCollection(
+        [
+            [
+                (
+                    np.sin(np.deg2rad(18 + (i * 36))) * 0.875,
+                    np.cos(np.deg2rad(18 + (i * 36))) * 0.875,
+                ),
+                (
+                    np.sin(np.deg2rad(18 + (i * 36))) * 3.125,
+                    np.cos(np.deg2rad(18 + (i * 36))) * 3.125,
+                ),
+            ]
+            for i in range(10)
+        ],
+        colors="white",
+    )
+)
+
+# Draw the actual nodes and edges
+nx.draw(
+    G_clstr,
+    pos=pos,
+    with_labels=True,
     ax=clstr_ax,
-    cbar_ax=cbar)
-clstr_ax.set_title(
-    label="Shared clusters count",
-    fontsize=40)
-clstr_ax.set_xticks(
-    ticks=clstr_ax.get_xticks()[:-1],
-    labels=clstr_ax.get_xticklabels()[:-1],
-    rotation_mode='anchor',
-    rotation=45,
-    ha='right',
-    va='top',
-    fontsize=30)
-clstr_ax.set_yticks(
-    ticks=clstr_ax.get_yticks()[1:],
-    labels=clstr_ax.get_yticklabels()[1:],
-    rotation_mode='anchor',
-    rotation=0,
-    ha='right',
-    va='center',
-    fontsize=30)
-clstr_ax.set_xlabel("")
-clstr_ax.set_ylabel("")
+    width=list(nx.get_edge_attributes(G_clstr, "weight").values()),
+    arrows=True,
+    arrowstyle="-",
+    connectionstyle="arc3,rad=0.3",
+    font_color="white",
+    font_size=25,
+    node_size=5000,
+)
 
-sn.heatmap(
-    data=super_adj_matrix,
-    #mask=np.triu(np.ones_like(super_adj_matrix)),
-    vmax=9,
-    annot=True,
-    center=0,
-    cmap=custom_cmap,
+# Set title
+clstr_ax.set_title("A", loc="left", va="top", fontsize=35, weight="bold")
+
+# Find superfamilies shared across two or more classes
+class_per_super_count_df = pd.DataFrame(
+    combo_super_class_count_df["superfamily"].value_counts(
+        dropna=True, sort=False
+    )
+).reset_index(names="superfamily")
+multi_class_supers = class_per_super_count_df.loc[
+    class_per_super_count_df["count"] > 1
+]["superfamily"].to_list()
+multi_class_super_rows = combo_super_class_count_df.loc[
+    combo_super_class_count_df["superfamily"].isin(multi_class_supers)
+]
+
+# Get counts of superfamilies shared between two classes
+super_share_matrix = get_shared_label_counts(
+    multi_class_super_rows, "superfamily", interesting_nodes
+)
+
+# Create node graph from set of classes that actually do share superfamilies
+G_super = nx.DiGraph()
+G_super_nodes = {
+    row[0][0]
+    for row in super_share_matrix.iterrows()
+    if (row[1].iat[0] > 0)  # noqa: PD009
+}
+G_super.add_nodes_from(G_super_nodes)
+
+# Specify a specific direction for edges. Only matters becaus edges have a
+# counterclockwise curve, and certain edge orientations heavily overlap with
+# nodes
+G_super_edges = [
+    ("FQ", "MDR"),
+    ("MLS", "FQ"),
+    ("FQ", "TET"),
+    ("FQ", "UNC"),
+    ("FQ", "AG"),
+    ("FFA", "FQ"),
+    ("FQ", "BCM"),
+    ("PHE", "FQ"),
+    ("TET-C", "FQ"),
+    ("FQ", "NUC"),
+    ("AG", "MDR"),
+    ("MLS", "AG"),
+    ("AG", "UNC"),
+    ("PHE", "AG"),
+    ("NUC", "AG"),
+    ("MDR", "MLS"),
+    ("MLS", "BCM"),
+    ("MLS", "TET"),
+    ("MLS", "UNC"),
+    ("MLS", "PHE"),
+    ("MLS", "TET-C"),
+    ("MLS", "NUC"),
+    ("TRI", "MLS"),
+    ("MLS", "OXA"),
+    ("MDR", "TRI"),
+    ("OXA", "MDR"),
+    ("UNC", "MDR"),
+    ("GlyP", "UNC"),
+    ("UNC", "PHE"),
+    ("PMX", "PEP"),
+    ("TET-C", "MDR"),
+    ("TET", "TET-C"),
+    ("TET-C", "PHE"),
+    ("NUC", "TET-C"),
+    ("BCM", "TET-C"),
+    ("MDR", "BL"),
+    ("PEP", "BL"),
+    ("TET", "PHE"),
+    ("PHE", "MDR"),
+    ("PHE", "NUC"),
+    ("BCM", "PHE"),
+    ("MDR", "PEP"),
+    ("MDR", "FFA"),
+    ("MDR", "BCM"),
+    ("MDR", "TET"),
+    ("MDR", "NUC"),
+    ("NUC", "TET"),
+    ("BCM", "NUC"),
+    ("FFA", "TET"),
+    ("TET", "BCM"),
+]
+
+# Add edges and weights (shared superfamily count) to node graph
+G_super.add_weighted_edges_from([
+    (row[0], row[1], int(super_share_matrix.at[row, "count"]))
+    for row in G_super_edges
+])
+
+# Specify a specific position for each node. Based on class specificity.
+pos = {
+    "AG": (
+        np.sin(np.deg2rad(3 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(3 * 360 / 14)) * 2.00,
+    ),
+    "BCM": (
+        np.sin(np.deg2rad(6 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(6 * 360 / 14)) * 2.00,
+    ),
+    "BL": (
+        np.sin(np.deg2rad(0 * 360 / 14)) * 1.25,
+        np.cos(np.deg2rad(0 * 360 / 14)) * 1.25,
+    ),
+    "FFA": (
+        np.sin(np.deg2rad(5 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(5 * 360 / 14)) * 2.00,
+    ),
+    "FQ": (
+        np.sin(np.deg2rad(4 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(4 * 360 / 14)) * 2.00,
+    ),
+    "GlyP": (
+        np.sin(np.deg2rad(12 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(12 * 360 / 14)) * 2.00,
+    ),
+    "MDR": (
+        np.sin(np.deg2rad(135)) * 0.50,
+        np.cos(np.deg2rad(135)) * 0.50
+    ),
+    "MLS": (
+        np.sin(np.deg2rad(13 * 360 / 14)) * 1.25,
+        np.cos(np.deg2rad(13 * 360 / 14)) * 1.25,
+    ),
+    "NUC": (
+        np.sin(np.deg2rad(8 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(8 * 360 / 14)) * 2.00,
+    ),
+    "OXA": (
+        np.sin(np.deg2rad(11 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(11 * 360 / 14)) * 2.00,
+    ),
+    "PEP": (
+        np.sin(np.deg2rad(2 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(2 * 360 / 14)) * 2.00,
+    ),
+    "PHE": (
+        np.sin(np.deg2rad(9 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(9 * 360 / 14)) * 2.00,
+    ),
+    "PMX": (
+        np.sin(np.deg2rad(2 * 360 / 14)) * 2.75,
+        np.cos(np.deg2rad(2 * 360 / 14)) * 2.75,
+    ),
+    "TET": (
+        np.sin(np.deg2rad(7 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(7 * 360 / 14)) * 2.00,
+    ),
+    "TET-C": (
+        np.sin(np.deg2rad(10 * 360 / 14)) * 2.00,
+        np.cos(np.deg2rad(10 * 360 / 14)) * 2.00,
+    ),
+    "TRI": (
+        np.sin(np.deg2rad(1 * 360 / 14)) * 2.75,
+        np.cos(np.deg2rad(1 * 360 / 14)) * 2.75,
+    ),
+    "UNC": (
+        np.sin(np.deg2rad(-45)) * 0.50,
+        np.cos(np.deg2rad(-45)) * 0.50
+    ),
+}
+
+# Specify class specificity with circles
+super_ax.add_collection(
+    PatchCollection(
+        [
+            Circle(xy=(0, 0), radius=0.875, alpha=0.15),
+            Circle(xy=(0, 0), radius=1.625, alpha=0.15),
+            Circle(xy=(0, 0), radius=2.375, alpha=0.15),
+            Circle(xy=(0, 0), radius=3.125, alpha=0.15),
+        ],
+        alpha=0.15,
+    )
+)
+
+# Separate unrelated classes with lines
+super_ax.add_collection(
+    LineCollection(
+        [
+            [
+                (
+                    np.sin(np.deg2rad(360 / 28 + (i * 360 / 14))) * 0.875,
+                    np.cos(np.deg2rad(360 / 28 + (i * 360 / 14))) * 0.875,
+                ),
+                (
+                    np.sin(np.deg2rad(360 / 28 + (i * 360 / 14))) * 3.125,
+                    np.cos(np.deg2rad(360 / 28 + (i * 360 / 14))) * 3.125,
+                ),
+            ]
+            for i in range(14)
+        ],
+        colors="white",
+    )
+)
+
+# Draw the actual nodes and edges
+nx.draw(
+    G_super,
+    pos=pos,
+    with_labels=True,
     ax=super_ax,
-    cbar_ax=cbar)
-super_ax.set_title(
-    label="Shared superfamilies count",
-    fontsize=40)
-super_ax.set_xticks(
-    ticks=super_ax.get_xticks()[:-1],
-    labels=super_ax.get_xticklabels()[:-1],
-    rotation_mode='anchor',
-    rotation=45,
-    ha='right',
-    va='top',
-    fontsize=30)
-super_ax.set_yticks(
-    ticks=super_ax.get_yticks()[1:],
-    labels=super_ax.get_yticklabels()[1:],
-    rotation_mode='anchor',
-    rotation=0,
-    ha='right',
-    va='center',
-    fontsize=30)
-super_ax.set_xlabel("")
-super_ax.set_ylabel("")
+    width=list(nx.get_edge_attributes(G_super, "weight").values()),
+    arrows=True,
+    arrowstyle="-",
+    connectionstyle="arc3,rad=0.3",
+    font_color="white",
+    font_size=25,
+    node_size=5000,
+)
 
-cbar.tick_params(labelsize=30)
+# Set title
+super_ax.set_title("B", loc="left", va="top", fontsize=35, weight="bold")
 
-plt.savefig(f"inter_class_sim_adj_v{VERSION}.png")
+# Let's save and be done with it
+plt.savefig(f"inter_class_sim_graph_v{VERSION}.png")
