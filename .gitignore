@@ -42,3 +42,4 @@ database/blast_db.sh
 database/blast_results.txt
 test/concat_experiments/frame*.fasta
 test/concat_experiments/clean_ORFs.fa
+WGS_experiments/samples/hit_classes.tsv

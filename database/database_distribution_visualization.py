@@ -1,4 +1,5 @@
 import sys
+import warnings
 from itertools import product
 
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from matplotlib.patches import Circle
 
 VERSION = sys.argv[1]
 FEATURE_DATA = f"v{VERSION}_feature_data.csv"
+HIT_CLASSES = "../WGS_experiments/samples/hit_classes.tsv"
 
 
 def get_shared_label_counts(
@@ -273,30 +275,11 @@ super_ax = plt.axes((0.01, 0.0, 0.98, 0.49))
 clstr_ax = plt.axes((0.01, 0.49, 0.98, 0.49))
 
 # We will only include classes that will have alignment hits in WGS experiments
-interesting_nodes = {
-    "AG",
-    "AG/AC",
-    "BL",
-    "BCM",
-    "DAP",
-    "FFA",
-    "FQ",
-    "GlyP",
-    "MDR",
-    "MLS",
-    "NI",
-    "NUC",
-    "OXA",
-    "PEP",
-    "PHE",
-    "PLM",
-    "PMX",
-    "SUL",
-    "TET",
-    "TET-C",
-    "TRI",
-    "UNC",
-}
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    interesting_nodes = pd.read_csv(HIT_CLASSES).apply(
+        lambda x: amr_abbrev.at[x[0], 1], axis=1
+    )
 
 # Find clusters shared across two or more classes
 class_per_clstr_count_df = pd.DataFrame(
@@ -336,12 +319,13 @@ G_clstr_edges = [
     ("MLS", "TET"),
     ("TET", "FFA"),
     ("UNC", "MDR"),
-    ("MLS", "UNC"),
+    ("UNC", "MLS"),
     ("AG", "UNC"),
     ("UNC", "GlyP"),
     ("UNC", "PHE"),
     ("MDR", "BL"),
     ("MDR", "AG"),
+    ("MDR", "AC"),
     ("MDR", "FQ"),
     ("MDR", "FFA"),
     ("MDR", "MLS"),
@@ -354,54 +338,60 @@ G_clstr.add_weighted_edges_from([
 ])
 
 # Specify a specific position for each node. Based on class specificity.
+partition_cluster = 11
+slice_cluster = 360.0 / partition_cluster
 pos = {
+    "AC": (
+        np.sin(np.deg2rad(3 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(3 * slice_cluster)) * 2.00,
+    ),
     "AG": (
-        np.sin(np.deg2rad(3 * 36)) * 2.00,
-        np.cos(np.deg2rad(3 * 36)) * 2.00,
+        np.sin(np.deg2rad(4 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(4 * slice_cluster)) * 2.00,
     ),
     "BL": (
-        np.sin(np.deg2rad(0 * 36)) * 1.25,
-        np.cos(np.deg2rad(0 * 36)) * 1.25,
+        np.sin(np.deg2rad(0 * slice_cluster)) * 1.25,
+        np.cos(np.deg2rad(0 * slice_cluster)) * 1.25,
     ),
     "FFA": (
-        np.sin(np.deg2rad(5 * 36)) * 2.00,
-        np.cos(np.deg2rad(5 * 36)) * 2.00,
+        np.sin(np.deg2rad(6 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(6 * slice_cluster)) * 2.00,
     ),
     "FQ": (
-        np.sin(np.deg2rad(4 * 36)) * 2.00,
-        np.cos(np.deg2rad(4 * 36)) * 2.00,
+        np.sin(np.deg2rad(5 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(5 * slice_cluster)) * 2.00,
     ),
     "GlyP": (
-        np.sin(np.deg2rad(8 * 36)) * 2.00,
-        np.cos(np.deg2rad(8 * 36)) * 2.00,
+        np.sin(np.deg2rad(9 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(9 * slice_cluster)) * 2.00,
     ),
     "MDR": (
         np.sin(np.deg2rad(135)) * 0.50,
         np.cos(np.deg2rad(135)) * 0.50
     ),
     "MLS": (
-        np.sin(np.deg2rad(9 * 36)) * 1.25,
-        np.cos(np.deg2rad(9 * 36)) * 1.25,
+        np.sin(np.deg2rad(10 * slice_cluster)) * 1.25,
+        np.cos(np.deg2rad(10 * slice_cluster)) * 1.25,
     ),
     "PEP": (
-        np.sin(np.deg2rad(2 * 36)) * 2.00,
-        np.cos(np.deg2rad(2 * 36)) * 2.00,
+        np.sin(np.deg2rad(2 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(2 * slice_cluster)) * 2.00,
     ),
     "PHE": (
-        np.sin(np.deg2rad(7 * 36)) * 2.00,
-        np.cos(np.deg2rad(7 * 36)) * 2.00,
+        np.sin(np.deg2rad(8 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(8 * slice_cluster)) * 2.00,
     ),
     "PMX": (
-        np.sin(np.deg2rad(2 * 36)) * 2.75,
-        np.cos(np.deg2rad(2 * 36)) * 2.75,
+        np.sin(np.deg2rad(2 * slice_cluster)) * 2.75,
+        np.cos(np.deg2rad(2 * slice_cluster)) * 2.75,
     ),
     "TET": (
-        np.sin(np.deg2rad(6 * 36)) * 2.00,
-        np.cos(np.deg2rad(6 * 36)) * 2.00,
+        np.sin(np.deg2rad(7 * slice_cluster)) * 2.00,
+        np.cos(np.deg2rad(7 * slice_cluster)) * 2.00,
     ),
     "TRI": (
-        np.sin(np.deg2rad(1 * 36)) * 2.75,
-        np.cos(np.deg2rad(1 * 36)) * 2.75,
+        np.sin(np.deg2rad(1 * slice_cluster)) * 2.75,
+        np.cos(np.deg2rad(1 * slice_cluster)) * 2.75,
     ),
     "UNC": (
         np.sin(np.deg2rad(-45)) * 0.50,
@@ -413,12 +403,13 @@ pos = {
 clstr_ax.add_collection(
     PatchCollection(
         [
-            Circle(xy=(0, 0), radius=0.875, alpha=0.15),
-            Circle(xy=(0, 0), radius=1.625, alpha=0.15),
-            Circle(xy=(0, 0), radius=2.375, alpha=0.15),
-            Circle(xy=(0, 0), radius=3.125, alpha=0.15),
+            Circle(xy=(0, 0), radius=3.125),
+            Circle(xy=(0, 0), radius=2.375),
+            Circle(xy=(0, 0), radius=1.625),
+            Circle(xy=(0, 0), radius=0.875),
         ],
-        alpha=0.15,
+        facecolors=["slategray", "white", "white", "white"],
+        alpha=[0.45, 0.2, 0.2, 0.2],
     )
 )
 
@@ -428,15 +419,19 @@ clstr_ax.add_collection(
         [
             [
                 (
-                    np.sin(np.deg2rad(18 + (i * 36))) * 0.875,
-                    np.cos(np.deg2rad(18 + (i * 36))) * 0.875,
+                    np.sin(np.deg2rad(slice_cluster / 2 + (i * slice_cluster)))
+                    * 0.875,
+                    np.cos(np.deg2rad(slice_cluster / 2 + (i * slice_cluster)))
+                    * 0.875,
                 ),
                 (
-                    np.sin(np.deg2rad(18 + (i * 36))) * 3.125,
-                    np.cos(np.deg2rad(18 + (i * 36))) * 3.125,
+                    np.sin(np.deg2rad(slice_cluster / 2 + (i * slice_cluster)))
+                    * 3.125,
+                    np.cos(np.deg2rad(slice_cluster / 2 + (i * slice_cluster)))
+                    * 3.125,
                 ),
             ]
-            for i in range(10)
+            for i in range(partition_cluster)
         ],
         colors="white",
     )
@@ -452,7 +447,8 @@ nx.draw(
     arrows=True,
     arrowstyle="-",
     connectionstyle="arc3,rad=0.3",
-    font_color="white",
+    node_color="white",
+    font_color="black",
     font_size=25,
     node_size=5000,
 )
@@ -492,22 +488,25 @@ G_super.add_nodes_from(G_super_nodes)
 # nodes
 G_super_edges = [
     ("FQ", "MDR"),
-    ("MLS", "FQ"),
+    ("FQ", "MLS"),
     ("FQ", "TET"),
     ("FQ", "UNC"),
     ("FQ", "AG"),
-    ("FFA", "FQ"),
-    ("FQ", "BCM"),
+    ("FQ", "FFA"),
+    ("BCM", "FQ"),
     ("PHE", "FQ"),
     ("TET-C", "FQ"),
-    ("FQ", "NUC"),
+    ("NUC", "FQ"),
     ("AG", "MDR"),
+    ("AC", "MDR"),
     ("MLS", "AG"),
+    ("MLS", "AC"),
     ("AG", "UNC"),
     ("PHE", "AG"),
+    ("AG", "PA/PEP"),
     ("NUC", "AG"),
-    ("MDR", "MLS"),
-    ("MLS", "BCM"),
+    ("MLS", "MDR"),
+    ("BCM", "MLS"),
     ("MLS", "TET"),
     ("MLS", "UNC"),
     ("MLS", "PHE"),
@@ -520,12 +519,24 @@ G_super_edges = [
     ("UNC", "MDR"),
     ("GlyP", "UNC"),
     ("UNC", "PHE"),
-    ("PMX", "PEP"),
+    ("PEP", "PMX"),
+    ("BAC", "PEP"),
+    ("BAC", "UNC"),
+    ("BAC", "MLS"),
+    ("FOF", "GlyP"),
+    ("MLS", "FOM"),
+    ("FOM", "TET-C"),
+    ("FOM", "PHE"),
+    ("FOM", "NUC"),
+    ("MDR", "FOM"),
+    ("FOM", "TET"),
+    ("FOM", "BCM"),
+    ("FQ", "FOM"),
     ("TET-C", "MDR"),
     ("TET", "TET-C"),
     ("TET-C", "PHE"),
     ("NUC", "TET-C"),
-    ("BCM", "TET-C"),
+    ("TET-C", "BCM"),
     ("MDR", "BL"),
     ("PEP", "BL"),
     ("TET", "PHE"),
@@ -539,8 +550,8 @@ G_super_edges = [
     ("MDR", "NUC"),
     ("NUC", "TET"),
     ("BCM", "NUC"),
-    ("FFA", "TET"),
-    ("TET", "BCM"),
+    ("TET", "FFA"),
+    ("BCM", "TET"),
 ]
 
 # Add edges and weights (shared superfamily count) to node graph
@@ -550,74 +561,96 @@ G_super.add_weighted_edges_from([
 ])
 
 # Specify a specific position for each node. Based on class specificity.
+partition_super = 16
+slice_super = 360.0 / partition_super
 pos = {
+    "AC": (
+        np.sin(np.deg2rad(3 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(3 * slice_super)) * 2.00,
+    ),
     "AG": (
-        np.sin(np.deg2rad(3 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(3 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(4 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(4 * slice_super)) * 2.00,
+    ),
+    "BAC": (
+        np.sin(np.deg2rad(1.75 * slice_super)) * 2.75,
+        np.cos(np.deg2rad(1.75 * slice_super)) * 2.75,
     ),
     "BCM": (
-        np.sin(np.deg2rad(6 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(6 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(6 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(6 * slice_super)) * 2.00,
     ),
     "BL": (
-        np.sin(np.deg2rad(0 * 360 / 14)) * 1.25,
-        np.cos(np.deg2rad(0 * 360 / 14)) * 1.25,
+        np.sin(np.deg2rad(16 * slice_super)) * 1.25,
+        np.cos(np.deg2rad(16 * slice_super)) * 1.25,
     ),
     "FFA": (
-        np.sin(np.deg2rad(5 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(5 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(7 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(7 * slice_super)) * 2.00,
+    ),
+    "FOF": (
+        np.sin(np.deg2rad(9.25 * slice_super)) * 2.75,
+        np.cos(np.deg2rad(9.25 * slice_super)) * 2.75,
+    ),
+    "FOM": (
+        np.sin(np.deg2rad(8.75 * slice_super)) * 2.75,
+        np.cos(np.deg2rad(8.75 * slice_super)) * 2.75,
     ),
     "FQ": (
-        np.sin(np.deg2rad(4 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(4 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(5 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(5 * slice_super)) * 2.00,
     ),
     "GlyP": (
-        np.sin(np.deg2rad(12 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(12 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(14 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(14 * slice_super)) * 2.00,
     ),
     "MDR": (
-        np.sin(np.deg2rad(135)) * 0.50,
-        np.cos(np.deg2rad(135)) * 0.50
+        np.sin(np.deg2rad(160)) * 0.50,
+        np.cos(np.deg2rad(160)) * 0.50
     ),
     "MLS": (
-        np.sin(np.deg2rad(13 * 360 / 14)) * 1.25,
-        np.cos(np.deg2rad(13 * 360 / 14)) * 1.25,
+        np.sin(np.deg2rad(15 * slice_super)) * 1.25,
+        np.cos(np.deg2rad(15 * slice_super)) * 1.25,
     ),
     "NUC": (
-        np.sin(np.deg2rad(8 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(8 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(10 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(10 * slice_super)) * 2.00,
     ),
     "OXA": (
-        np.sin(np.deg2rad(11 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(11 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(13 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(13 * slice_super)) * 2.00,
+    ),
+    "PA/PEP": (
+        np.sin(np.deg2rad(2 * slice_super)) * 1.25,
+        np.cos(np.deg2rad(2 * slice_super)) * 1.25,
     ),
     "PEP": (
-        np.sin(np.deg2rad(2 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(2 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(2 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(2 * slice_super)) * 2.00,
     ),
     "PHE": (
-        np.sin(np.deg2rad(9 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(9 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(11 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(11 * slice_super)) * 2.00,
     ),
     "PMX": (
-        np.sin(np.deg2rad(2 * 360 / 14)) * 2.75,
-        np.cos(np.deg2rad(2 * 360 / 14)) * 2.75,
+        np.sin(np.deg2rad(2.25 * slice_super)) * 2.75,
+        np.cos(np.deg2rad(2.25 * slice_super)) * 2.75,
     ),
     "TET": (
-        np.sin(np.deg2rad(7 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(7 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(8 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(8 * slice_super)) * 2.00,
     ),
     "TET-C": (
-        np.sin(np.deg2rad(10 * 360 / 14)) * 2.00,
-        np.cos(np.deg2rad(10 * 360 / 14)) * 2.00,
+        np.sin(np.deg2rad(12 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(12 * slice_super)) * 2.00,
     ),
     "TRI": (
-        np.sin(np.deg2rad(1 * 360 / 14)) * 2.75,
-        np.cos(np.deg2rad(1 * 360 / 14)) * 2.75,
+        np.sin(np.deg2rad(1 * slice_super)) * 2.75,
+        np.cos(np.deg2rad(1 * slice_super)) * 2.75,
     ),
     "UNC": (
-        np.sin(np.deg2rad(-45)) * 0.50,
-        np.cos(np.deg2rad(-45)) * 0.50
+        np.sin(np.deg2rad(-20)) * 0.50,
+        np.cos(np.deg2rad(-20)) * 0.50
     ),
 }
 
@@ -625,12 +658,13 @@ pos = {
 super_ax.add_collection(
     PatchCollection(
         [
-            Circle(xy=(0, 0), radius=0.875, alpha=0.15),
-            Circle(xy=(0, 0), radius=1.625, alpha=0.15),
-            Circle(xy=(0, 0), radius=2.375, alpha=0.15),
-            Circle(xy=(0, 0), radius=3.125, alpha=0.15),
+            Circle(xy=(0, 0), radius=3.125),
+            Circle(xy=(0, 0), radius=2.375),
+            Circle(xy=(0, 0), radius=1.625),
+            Circle(xy=(0, 0), radius=0.875),
         ],
-        alpha=0.15,
+        facecolors=["slategray", "white", "white", "white"],
+        alpha=[0.45, 0.2, 0.2, 0.2],
     )
 )
 
@@ -640,15 +674,19 @@ super_ax.add_collection(
         [
             [
                 (
-                    np.sin(np.deg2rad(360 / 28 + (i * 360 / 14))) * 0.875,
-                    np.cos(np.deg2rad(360 / 28 + (i * 360 / 14))) * 0.875,
+                    np.sin(np.deg2rad(slice_super / 2 + (i * slice_super)))
+                    * 0.875,
+                    np.cos(np.deg2rad(slice_super / 2 + (i * slice_super)))
+                    * 0.875,
                 ),
                 (
-                    np.sin(np.deg2rad(360 / 28 + (i * 360 / 14))) * 3.125,
-                    np.cos(np.deg2rad(360 / 28 + (i * 360 / 14))) * 3.125,
+                    np.sin(np.deg2rad(slice_super / 2 + (i * slice_super)))
+                    * 3.125,
+                    np.cos(np.deg2rad(slice_super / 2 + (i * slice_super)))
+                    * 3.125,
                 ),
             ]
-            for i in range(14)
+            for i in range(partition_super)
         ],
         colors="white",
     )
@@ -664,7 +702,8 @@ nx.draw(
     arrows=True,
     arrowstyle="-",
     connectionstyle="arc3,rad=0.3",
-    font_color="white",
+    node_color="white",
+    font_color="black",
     font_size=25,
     node_size=5000,
 )
