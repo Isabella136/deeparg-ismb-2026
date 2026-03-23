@@ -9,6 +9,10 @@ import seaborn as sns
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Circle
 
+sys.path.append("../../")
+
+from utils.curved_text import CurvedText
+
 HIT_COUNT = "../samples/deeparg_hit_count.tsv"
 INPUT_SEQ_COUNT = "../samples/sequence_count.tsv"
 FEATURE_DATA = "../../database/v2_feature_data.csv"
@@ -791,6 +795,61 @@ for graph_type in ["alignment", "share", "imbalance"]:
         )
     edge_color = edge_color_f(weights)
     edge_style = style_f(weights)
+
+    # The tough part: label partition's class (thanking the gods at stackoverflow
+    # for this: https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib)
+    partition_labels = [
+        "beta-lactams",
+        "peptides",
+        "antiseptics",
+        "fluoroquinolones",
+        "sulfonamides",
+        "aminoglycosides",
+        "diaminopyrimidines",
+        "bicyclomycins",
+        "free fatty acids",
+        "tetracyclines",
+        "nucleosides",
+        "nitroimidazoles",
+        "tetracenomycin C",
+        "phenicols",
+        "oxazolidinones",
+        "glycopeptides",
+        "pleuromutilins",
+        "MLS drugs"]
+
+    curves = [
+        [
+            np.sin(
+                np.linspace(
+                    np.deg2rad((partition - 0.5) * slice_super),
+                    np.deg2rad((partition + 0.5) * slice_super),
+                    100
+                )
+            )
+            * 3.125,
+            np.cos(
+                np.linspace(
+                    np.deg2rad((partition - 0.5) * slice_super),
+                    np.deg2rad((partition + 0.5) * slice_super),
+                    100
+                )
+            )
+            * 3.125,
+        ]
+        for partition in range(partition_super)
+    ]
+
+    for curve, partition_label in zip(curves, partition_labels):
+        # adding the text
+        text = CurvedText(
+            x=curve[0],
+            y=curve[1],
+            text=partition_label,
+            va="bottom",
+            fontsize=20,
+            ax=ax
+        )
 
     # Draw graph, starting with nodes
     nx.draw_networkx_nodes(

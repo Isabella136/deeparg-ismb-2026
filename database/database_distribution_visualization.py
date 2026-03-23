@@ -10,6 +10,10 @@ import seaborn as sns
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Circle
 
+sys.path.append("../")
+
+from utils.curved_text import CurvedText
+
 VERSION = sys.argv[1]
 FEATURE_DATA = f"v{VERSION}_feature_data.csv"
 HIT_CLASSES = "../WGS_experiments/samples/hit_classes.tsv"
@@ -274,6 +278,14 @@ plt.figure(figsize=(15, 30))
 super_ax = plt.axes((0.01, 0.0, 0.98, 0.49))
 clstr_ax = plt.axes((0.01, 0.49, 0.98, 0.49))
 
+amr_abbrev.at["polyamine:peptide", 1] = "PA/\nPEP"
+clstr_class_count_df["amr class"] = clstr_class_count_df["amr class"].apply(
+    lambda x: x if x != "PA/PEP" else "PA/\nPEP"
+)
+combo_super_class_count_df["amr class"] = combo_super_class_count_df[
+    "amr class"
+].apply(lambda x: x if x != "PA/PEP" else "PA/\nPEP")
+
 # We will only include classes that will have alignment hits in WGS experiments
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -437,6 +449,54 @@ clstr_ax.add_collection(
     )
 )
 
+# The tough part: label partition's class (thanking the gods at stackoverflow
+# for this: https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib)
+partition_labels = [
+    "beta-lactams",
+    "antiseptics",
+    "peptides",
+    "aminocoumarins",
+    "aminoglycosides",
+    "fluoroquinolones",
+    "free fatty acids",
+    "tetracyclines",
+    "phenicols",
+    "glycopeptides",
+    "MLS drugs"]
+
+curves = [
+    [
+        np.sin(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_cluster),
+                np.deg2rad((partition + 0.5) * slice_cluster),
+                100
+            )
+        )
+        * 3.125,
+        np.cos(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_cluster),
+                np.deg2rad((partition + 0.5) * slice_cluster),
+                100
+            )
+        )
+        * 3.125,
+    ]
+    for partition in range(partition_cluster)
+]
+
+for curve, partition_label in zip(curves, partition_labels):
+    # adding the text
+    text = CurvedText(
+        x=curve[0],
+        y=curve[1],
+        text=partition_label,
+        va="bottom",
+        fontsize=25,
+        ax=clstr_ax
+    )
+
 # Draw the actual nodes and edges
 nx.draw(
     G_clstr,
@@ -503,7 +563,7 @@ G_super_edges = [
     ("MLS", "AC"),
     ("AG", "UNC"),
     ("PHE", "AG"),
-    ("AG", "PA/PEP"),
+    ("AG", "PA/\nPEP"),
     ("NUC", "AG"),
     ("MLS", "MDR"),
     ("BCM", "MLS"),
@@ -620,7 +680,7 @@ pos = {
         np.sin(np.deg2rad(13 * slice_super)) * 2.00,
         np.cos(np.deg2rad(13 * slice_super)) * 2.00,
     ),
-    "PA/PEP": (
+    "PA/\nPEP": (
         np.sin(np.deg2rad(2 * slice_super)) * 1.25,
         np.cos(np.deg2rad(2 * slice_super)) * 1.25,
     ),
@@ -691,6 +751,59 @@ super_ax.add_collection(
         colors="white",
     )
 )
+
+# The tough part: label partition's class (thanking the gods at stackoverflow
+# for this: https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib)
+partition_labels = [
+    "beta-lactams",
+    "antiseptics",
+    "peptides",
+    "aminocoumarins",
+    "aminoglycosides",
+    "fluoroquinolones",
+    "bicyclomycins",
+    "free fatty acids",
+    "tetracyclines",
+    "phosphonates",
+    "nucleoside",
+    "phenicols",
+    "tetracenomycin C",
+    "oxazolidinones",
+    "glycopeptides",
+    "MLS drugs"]
+
+curves = [
+    [
+        np.sin(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_super),
+                np.deg2rad((partition + 0.5) * slice_super),
+                100
+            )
+        )
+        * 3.125,
+        np.cos(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_super),
+                np.deg2rad((partition + 0.5) * slice_super),
+                100
+            )
+        )
+        * 3.125,
+    ]
+    for partition in range(partition_super)
+]
+
+for curve, partition_label in zip(curves, partition_labels):
+    # adding the text
+    text = CurvedText(
+        x=curve[0],
+        y=curve[1],
+        text=partition_label,
+        va="bottom",
+        fontsize=20,
+        ax=super_ax
+    )
 
 # Draw the actual nodes and edges
 nx.draw(
