@@ -271,18 +271,51 @@ plt.gcf().text(
 )
 
 # Let's save and be done with it
-plt.savefig(f"db_distr_v{VERSION}.png")
+plt.savefig(f"db_distr_v{VERSION}.svg")
 
 # Create figure 2
 plt.figure(figsize=(15, 30))
 super_ax = plt.axes((0.01, 0.0, 0.98, 0.49))
 clstr_ax = plt.axes((0.01, 0.49, 0.98, 0.49))
 
+# Using code from good old stackoverflow:
+# https://stackoverflow.com/questions/71688904/dealing-with-multiple-values-in-pandas-dataframe-cell
+# Get super|class count for DeepARG database from feature data
+# (Counting each super in multi-super features)
+
+indiv_super_class_count_df = feature_data.reset_index()[
+    ["index", "amr class", "superfamily(ies) id(s)"]
+].melt("index")
+indiv_super_class_count_df["value"] = indiv_super_class_count_df[
+    "value"
+].str.split("$")
+indiv_super_class_count_df = indiv_super_class_count_df.explode("value")
+corresponding_class_df = indiv_super_class_count_df.loc[
+    indiv_super_class_count_df["variable"] == "amr class"
+]
+corresponding_class_df = corresponding_class_df[["index", "value"]].set_index(
+    "index"
+)
+indiv_super_class_count_df = indiv_super_class_count_df.loc[
+    indiv_super_class_count_df["variable"] == "superfamily(ies) id(s)"
+]
+indiv_super_class_count_df = pd.DataFrame(
+    indiv_super_class_count_df[["index", "value"]]
+    .apply(
+        lambda x: pd.Series({
+            "amr class": corresponding_class_df.at[x["index"], "value"],
+            "superfamily": x["value"],
+        }),
+        axis=1,
+    )
+    .value_counts(dropna=False, sort=False)
+).reset_index(names=["amr class", "superfamily"])
+
 amr_abbrev.at["polyamine:peptide", 1] = "PA/\nPEP"
 clstr_class_count_df["amr class"] = clstr_class_count_df["amr class"].apply(
     lambda x: x if x != "PA/PEP" else "PA/\nPEP"
 )
-combo_super_class_count_df["amr class"] = combo_super_class_count_df[
+indiv_super_class_count_df["amr class"] = indiv_super_class_count_df[
     "amr class"
 ].apply(lambda x: x if x != "PA/PEP" else "PA/\nPEP")
 
@@ -420,8 +453,8 @@ clstr_ax.add_collection(
             Circle(xy=(0, 0), radius=1.625),
             Circle(xy=(0, 0), radius=0.875),
         ],
-        facecolors=["slategray", "white", "white", "white"],
-        alpha=[0.45, 0.2, 0.2, 0.2],
+        facecolors=["darkgrey", "white", "white", "white"],
+        alpha=[0.75, 0.4, 0.4, 1],
     )
 )
 
@@ -518,15 +551,15 @@ clstr_ax.set_title("A", loc="left", va="top", fontsize=35, weight="bold")
 
 # Find superfamilies shared across two or more classes
 class_per_super_count_df = pd.DataFrame(
-    combo_super_class_count_df["superfamily"].value_counts(
+    indiv_super_class_count_df["superfamily"].value_counts(
         dropna=True, sort=False
     )
 ).reset_index(names="superfamily")
 multi_class_supers = class_per_super_count_df.loc[
     class_per_super_count_df["count"] > 1
 ]["superfamily"].to_list()
-multi_class_super_rows = combo_super_class_count_df.loc[
-    combo_super_class_count_df["superfamily"].isin(multi_class_supers)
+multi_class_super_rows = indiv_super_class_count_df.loc[
+    indiv_super_class_count_df["superfamily"].isin(multi_class_supers)
 ]
 
 # Get counts of superfamilies shared between two classes
@@ -547,15 +580,20 @@ G_super.add_nodes_from(G_super_nodes)
 # counterclockwise curve, and certain edge orientations heavily overlap with
 # nodes
 G_super_edges = [
+    ("PLM", "MDR"),
+    ("PLM", "OXA"),
+    ("PLM", "MLS"),
     ("FQ", "MDR"),
-    ("FQ", "MLS"),
+    ("MLS", "FQ"),
     ("FQ", "TET"),
+    ("UNC", "TET"),
+    ("TET", "BAC"),
     ("FQ", "UNC"),
     ("FQ", "AG"),
     ("FQ", "FFA"),
     ("BCM", "FQ"),
     ("PHE", "FQ"),
-    ("TET-C", "FQ"),
+    ("TCM", "FQ"),
     ("NUC", "FQ"),
     ("AG", "MDR"),
     ("AC", "MDR"),
@@ -566,11 +604,12 @@ G_super_edges = [
     ("AG", "PA/\nPEP"),
     ("NUC", "AG"),
     ("MLS", "MDR"),
+    ("GlyP", "MDR"),
     ("BCM", "MLS"),
     ("MLS", "TET"),
     ("MLS", "UNC"),
     ("MLS", "PHE"),
-    ("MLS", "TET-C"),
+    ("MLS", "TCM"),
     ("MLS", "NUC"),
     ("TRI", "MLS"),
     ("MLS", "OXA"),
@@ -585,18 +624,18 @@ G_super_edges = [
     ("BAC", "MLS"),
     ("FOF", "GlyP"),
     ("MLS", "FOM"),
-    ("FOM", "TET-C"),
+    ("FOM", "TCM"),
     ("FOM", "PHE"),
     ("FOM", "NUC"),
     ("MDR", "FOM"),
     ("FOM", "TET"),
     ("FOM", "BCM"),
     ("FQ", "FOM"),
-    ("TET-C", "MDR"),
-    ("TET", "TET-C"),
-    ("TET-C", "PHE"),
-    ("NUC", "TET-C"),
-    ("TET-C", "BCM"),
+    ("TCM", "MDR"),
+    ("TET", "TCM"),
+    ("TCM", "PHE"),
+    ("NUC", "TCM"),
+    ("TCM", "BCM"),
     ("MDR", "BL"),
     ("PEP", "BL"),
     ("TET", "PHE"),
@@ -621,7 +660,7 @@ G_super.add_weighted_edges_from([
 ])
 
 # Specify a specific position for each node. Based on class specificity.
-partition_super = 16
+partition_super = 17
 slice_super = 360.0 / partition_super
 pos = {
     "AC": (
@@ -641,8 +680,8 @@ pos = {
         np.cos(np.deg2rad(6 * slice_super)) * 2.00,
     ),
     "BL": (
-        np.sin(np.deg2rad(16 * slice_super)) * 1.25,
-        np.cos(np.deg2rad(16 * slice_super)) * 1.25,
+        np.sin(np.deg2rad(0 * slice_super)) * 1.25,
+        np.cos(np.deg2rad(0 * slice_super)) * 1.25,
     ),
     "FFA": (
         np.sin(np.deg2rad(7 * slice_super)) * 2.00,
@@ -661,16 +700,16 @@ pos = {
         np.cos(np.deg2rad(5 * slice_super)) * 2.00,
     ),
     "GlyP": (
-        np.sin(np.deg2rad(14 * slice_super)) * 2.00,
-        np.cos(np.deg2rad(14 * slice_super)) * 2.00,
+        np.sin(np.deg2rad(15 * slice_super)) * 2.00,
+        np.cos(np.deg2rad(15 * slice_super)) * 2.00,
     ),
     "MDR": (
         np.sin(np.deg2rad(160)) * 0.50,
         np.cos(np.deg2rad(160)) * 0.50
     ),
     "MLS": (
-        np.sin(np.deg2rad(15 * slice_super)) * 1.25,
-        np.cos(np.deg2rad(15 * slice_super)) * 1.25,
+        np.sin(np.deg2rad(16 * slice_super)) * 1.25,
+        np.cos(np.deg2rad(16 * slice_super)) * 1.25,
     ),
     "NUC": (
         np.sin(np.deg2rad(10 * slice_super)) * 2.00,
@@ -692,6 +731,10 @@ pos = {
         np.sin(np.deg2rad(11 * slice_super)) * 2.00,
         np.cos(np.deg2rad(11 * slice_super)) * 2.00,
     ),
+    "PLM": (
+        np.sin(np.deg2rad(14 * slice_super)) * 2,
+        np.cos(np.deg2rad(14 * slice_super)) * 2,
+    ),
     "PMX": (
         np.sin(np.deg2rad(2.25 * slice_super)) * 2.75,
         np.cos(np.deg2rad(2.25 * slice_super)) * 2.75,
@@ -700,7 +743,7 @@ pos = {
         np.sin(np.deg2rad(8 * slice_super)) * 2.00,
         np.cos(np.deg2rad(8 * slice_super)) * 2.00,
     ),
-    "TET-C": (
+    "TCM": (
         np.sin(np.deg2rad(12 * slice_super)) * 2.00,
         np.cos(np.deg2rad(12 * slice_super)) * 2.00,
     ),
@@ -723,8 +766,8 @@ super_ax.add_collection(
             Circle(xy=(0, 0), radius=1.625),
             Circle(xy=(0, 0), radius=0.875),
         ],
-        facecolors=["slategray", "white", "white", "white"],
-        alpha=[0.45, 0.2, 0.2, 0.2],
+        facecolors=["darkgrey", "white", "white", "white"],
+        alpha=[0.75, 0.4, 0.4, 1],
     )
 )
 
@@ -754,21 +797,22 @@ super_ax.add_collection(
 
 # The tough part: label partition's class (thanking the gods at stackoverflow
 # for this: https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib)
-partition_labels = [
+inner_partition_labels = [
     "beta-lactams",
     "antiseptics",
     "peptides",
-    "aminocoumarins",
-    "aminoglycosides",
-    "fluoroquinolones",
+    "coumarins",
+    "glycosides",
+    "fluoro-",
     "bicyclomycins",
     "free fatty acids",
     "tetracyclines",
     "phosphonates",
-    "nucleoside",
+    "nucleosides",
     "phenicols",
-    "tetracenomycin C",
+    "tetracenomycins",
     "oxazolidinones",
+    "pleuromutilins",
     "glycopeptides",
     "MLS drugs"]
 
@@ -794,14 +838,88 @@ curves = [
     for partition in range(partition_super)
 ]
 
-for curve, partition_label in zip(curves, partition_labels):
+inner_curves = [
+    [
+        np.sin(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_super),
+                np.deg2rad((partition + 0.5) * slice_super),
+                100
+            )
+        )
+        * 3.125,
+        np.cos(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_super),
+                np.deg2rad((partition + 0.5) * slice_super),
+                100
+            )
+        )
+        * 3.125,
+    ]
+    for partition in range(partition_super)
+]
+
+for curve, partition_label in zip(inner_curves, inner_partition_labels):
     # adding the text
     text = CurvedText(
         x=curve[0],
         y=curve[1],
         text=partition_label,
         va="bottom",
-        fontsize=20,
+        fontsize=24,
+        ax=super_ax
+    )
+
+outer_partition_labels = [
+    " ",
+    " ",
+    " ",
+    "amino-",
+    "amino-",
+    "quinolones",
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " ",
+    " "]
+
+outer_curves = [
+    [
+        np.sin(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_super),
+                np.deg2rad((partition + 0.5) * slice_super),
+                100
+            )
+        )
+        * 3.25,
+        np.cos(
+            np.linspace(
+                np.deg2rad((partition - 0.5) * slice_super),
+                np.deg2rad((partition + 0.5) * slice_super),
+                100
+            )
+        )
+        * 3.25,
+    ]
+    for partition in range(partition_super)
+]
+
+for curve, partition_label in zip(outer_curves, outer_partition_labels):
+    # adding the text
+    text = CurvedText(
+        x=curve[0],
+        y=curve[1],
+        text=partition_label,
+        va="bottom",
+        fontsize=24,
         ax=super_ax
     )
 
@@ -825,4 +943,4 @@ nx.draw(
 super_ax.set_title("B", loc="left", va="top", fontsize=35, weight="bold")
 
 # Let's save and be done with it
-plt.savefig(f"inter_class_sim_graph_v{VERSION}.png")
+plt.savefig(f"inter_class_sim_graph_v{VERSION}.svg")

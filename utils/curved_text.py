@@ -141,7 +141,7 @@ class CurvedText(mtext.Text):
             text_length = l_fig[il]
 
             # updating rel_pos to right edge of character
-            text_length += w - used
+            text_length += w - used - 2
 
         # Get the start and end of text
         text_start = arc_length / 2 - text_length / 2
@@ -166,7 +166,7 @@ class CurvedText(mtext.Text):
             elif self.va == "top":
                 self.va = "bottom"
 
-    def update_positions(self, renderer: RendererBase) -> None:
+    def update_positions(self, renderer: RendererBase) -> None:  # noqa: PLR0914
         """Update positions and rotations of the individual text elements."""
         # Determine the aspect ratio
         aspect_ratio = self.get_aspect_ratio()
@@ -241,4 +241,4 @@ class CurvedText(mtext.Text):
             t.set_ha("center")
 
             # updating rel_pos to right edge of character
-            rel_pos += w - used
+            rel_pos += w - used - 2

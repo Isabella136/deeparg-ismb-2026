@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.collections import LineCollection, PatchCollection
+from matplotlib.lines import Line2D
 from matplotlib.patches import Circle
 
 sys.path.append("../../")
@@ -19,6 +20,7 @@ FEATURE_DATA = "../../database/v2_feature_data.csv"
 
 mpl.rcParams["mathtext.fontset"] = "dejavusans"
 mpl.rcParams["font.family"] = "DejaVu Sans"
+mpl.rcParams["svg.fonttype"] = "none"
 
 # Get alignment label count
 label_df = pd.read_csv("label_counts.tsv", sep="\t", header=0).rename(
@@ -62,7 +64,7 @@ diff_prediction_count = (
     )
     .value_counts(subset=["Sample ID", "Alignment Identity", "Model"])
 )
-hit_count_amr_df["diff percentage"] = hit_count_amr_df.apply(
+hit_count_amr_df["diff freq percentage"] = hit_count_amr_df.apply(
     lambda x: (
         float(
             diff_prediction_count.at[
@@ -81,22 +83,32 @@ cb_palette = sns.color_palette("colorblind")
 
 # Make figure 3
 plt.figure(figsize=(15, 30))
-perc_diff_ax = plt.axes((0.15, 0.07, 0.8, 0.28))
-perc_pred_ax = plt.axes((0.15, 0.385, 0.8, 0.28), sharex=perc_diff_ax)
-perc_hit_ax = plt.axes((0.15, 0.7, 0.8, 0.28), sharex=perc_diff_ax)
+perc_freq_diff_ax = plt.axes((0.15, 0.07, 0.8, 0.28))
+perc_pred_ax = plt.axes((0.15, 0.385, 0.8, 0.28), sharex=perc_freq_diff_ax)
+perc_hit_ax = plt.axes((0.15, 0.7, 0.8, 0.28), sharex=perc_freq_diff_ax)
+
 
 # Draw figure 3A: percentages of sequences that had an alignment hit, averaged
 # for each model–alignment identity run condition
 sns.barplot(
-    x=range(6),
-    y=hit_count_amr_df.groupby(["model", "alignment identity"])[
-        "alignment hit percentage"
-    ].mean(),
+    data=hit_count_amr_df,
+    x="alignment identity",
+    y="alignment hit percentage",
+    hue="model",
+    errorbar=("pi", 75),
+    err_kws={"linewidth": 5, "color": "black"},
     ax=perc_hit_ax,
+    palette=["#52C4FF", "#9B0009"]
 )
 
-# Since top perc_hit_ax plot is vertically aligned to bottom perc_diff_ax
-# plot, we don't need to label perc_hit_ax x-axis, nor do we need tick marks
+perc_hit_ax.legend(
+    handles=perc_hit_ax.get_legend_handles_labels()[0],
+    labels=["Long Sequence Model", "Short Sequence Model"],
+    fontsize=30
+)
+
+# Since perc_hit_ax plot is vertically aligned to perc_freq_diff_ax plot, we
+# don't need to label perc_hit_ax x-axis, nor do we need tick marks
 perc_hit_ax.set_xlabel(xlabel="")
 perc_hit_ax.tick_params(axis="x", labelbottom=False)
 
@@ -119,15 +131,19 @@ perc_hit_ax.grid(visible=True, which="major", axis="y", color="0.75")
 # Draw figure 3B: percentages of alignment hits with a deeparg prediction,
 # averaged for each model–alignment identity run condition
 sns.barplot(
-    x=range(6),
-    y=hit_count_amr_df.groupby(["model", "alignment identity"])[
-        "deeparg prediction percentage"
-    ].mean(),
+    data=hit_count_amr_df,
+    x="alignment identity",
+    y="deeparg prediction percentage",
+    hue="model",
+    errorbar=("pi", 75),
+    err_kws={"linewidth": 5, "color": "black"},
     ax=perc_pred_ax,
+    palette=["#52C4FF", "#9B0009"],
+    legend=False
 )
 
-# Since middle perc_pred_ax plot is vertically aligned to bottom perc_diff_ax
-# plot, we don't need to label perc_pred_ax x-axis, nor do we need tick marks
+# Since perc_pred_ax plot is vertically aligned to perc_freq_diff_ax plot, we
+# don't need to label perc_pred_ax x-axis, nor do we need tick marks
 perc_pred_ax.set_xlabel(xlabel="")
 perc_pred_ax.tick_params(axis="x", labelbottom=False)
 
@@ -150,44 +166,43 @@ perc_pred_ax.grid(visible=True, which="major", axis="y", color="0.75")
 # frequent alignment hit, averaged for each model–alignment identity run
 # condition
 sns.barplot(
-    x=range(6),
-    y=hit_count_amr_df.groupby(["model", "alignment identity"])[
-        "diff percentage"
-    ].mean(),
-    color=cb_palette[0],
-    ax=perc_diff_ax,
+    data=hit_count_amr_df,
+    x="alignment identity",
+    y="diff freq percentage",
+    hue="model",
+    errorbar=("pi", 75),
+    err_kws={"linewidth": 5, "color": "black"},
+    ax=perc_freq_diff_ax,
+    palette=["#52C4FF", "#9B0009"],
+    legend=False
 )
 
 # x-axis is the list of model–alignment identity run condition
-perc_diff_ax.set_xlabel(
-    xlabel="Model–Alignment Identity Condition",
+perc_freq_diff_ax.set_xlabel(
+    xlabel="Alignment Identity Threshold",
     fontsize=35,
     loc="center",
-    labelpad=0,
+    labelpad=10,
 )
-perc_diff_ax.set_xticks(
-    ticks=range(6),
-    labels=["LS–30%", "LS–50%", "LS–80%", "SS–30%", "SS–50%", "SS–80%"],
-    rotation_mode="anchor",
-    ha="right",
-    va="top",
-    rotation=45,
+perc_freq_diff_ax.set_xticks(
+    ticks=range(3),
+    labels=["30%", "50%", "80%"],
     fontsize=30,
 )
 
-# y-axis is average percentages from 0 to 5. Axis title is set later in the code
-perc_diff_ax.set_ylabel("")
-perc_diff_ax.set_ylim(top=0.06)
-perc_diff_ax.set_yticks(
-    ticks=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06],
-    labels=[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0], fontsize=30)
+# y-axis is average percentages from 0 to 10. Axis title is set later in the code  # noqa: E501
+perc_freq_diff_ax.set_ylabel("")
+perc_freq_diff_ax.set_ylim(top=0.08)
+perc_freq_diff_ax.set_yticks(
+    ticks=[0, 0.02, 0.04, 0.06, 0.08],
+    labels=[0.0, 2.0, 4.0, 6.0, 8.0], fontsize=30)
 
 # Set title
 plt.gcf().text(0.02, 0.35, "C", fontsize=40, va="center", weight="bold")
 
 # Styling the graph a bit more
-perc_diff_ax.tick_params(length=0, pad=8)
-perc_diff_ax.grid(visible=True, which="major", axis="y", color="0.75")
+perc_freq_diff_ax.tick_params(length=0, pad=8)
+perc_freq_diff_ax.grid(visible=True, which="major", axis="y", color="0.75")
 
 # We want y-axis labels for all graphs to be vertically aligned
 plt.gcf().text(
@@ -201,7 +216,7 @@ plt.gcf().text(
 )
 
 # Save plot and be done with it
-plt.savefig("barplot.png")
+plt.savefig("barplot.svg")
 
 # Only mapping a specific identity and model
 model = sys.argv[1]
@@ -239,12 +254,36 @@ clstr_class_df = (
     .drop_duplicates()
 )
 
-# Get individual superfamily|class for DeepARG database from feature data
-# (Consider combos in multi-superfamily features as their own domain)
-combo_super_class_df = (
-    feature_data
-    .reset_index(drop=True)
-    [["amr class", "superfamily(ies) id(s)"]]
+# Using code from good old stackoverflow:
+# https://stackoverflow.com/questions/71688904/dealing-with-multiple-values-in-pandas-dataframe-cell
+# Get super|class for DeepARG database from feature data
+# (Counting each super in multi-super features)
+
+indiv_super_class_df = feature_data.reset_index()[
+    ["index", "amr class", "superfamily(ies) id(s)"]
+].melt("index")
+indiv_super_class_df["value"] = indiv_super_class_df[
+    "value"
+].str.split("$")
+indiv_super_class_df = indiv_super_class_df.explode("value")
+corresponding_class_df = indiv_super_class_df.loc[
+    indiv_super_class_df["variable"] == "amr class"
+]
+corresponding_class_df = corresponding_class_df[["index", "value"]].set_index(
+    "index"
+)
+indiv_super_class_df = indiv_super_class_df.loc[
+    indiv_super_class_df["variable"] == "superfamily(ies) id(s)"
+]
+indiv_super_class_df = pd.DataFrame(
+    indiv_super_class_df[["index", "value"]]
+    .apply(
+        lambda x: pd.Series({
+            "amr class": corresponding_class_df.at[x["index"], "value"],
+            "superfamily": x["value"],
+        }),
+        axis=1,
+    )
     .drop_duplicates()
 )
 
@@ -264,7 +303,7 @@ shared_clstr_class = clstr_class_df.loc[
 
 # Find classes that share superfamilies with another class
 classes_per_super_count_df = (
-    combo_super_class_df["superfamily(ies) id(s)"]
+    indiv_super_class_df["superfamily"]
     .value_counts(dropna=True, sort=False)
     .reset_index()
     .set_axis(["super", "count"], axis=1)
@@ -272,8 +311,8 @@ classes_per_super_count_df = (
 multi_class_super = classes_per_super_count_df.loc[
     classes_per_super_count_df["count"] > 1
 ]["super"].to_list()
-shared_super_class = combo_super_class_df.loc[
-    combo_super_class_df["superfamily(ies) id(s)"].isin(multi_class_super)
+shared_super_class = indiv_super_class_df.loc[
+    indiv_super_class_df["superfamily"].isin(multi_class_super)
 ]["amr class"].drop_duplicates()
 
 # Those are the classes that share superfamilies or clusters; will be colored
@@ -316,112 +355,9 @@ switch_df = pd.DataFrame(
         columns=heatmap_y_axis,
     )
 
-for graph_type in ["alignment", "share", "imbalance"]:
-    # Compare observed switches vs expected switches
-    if graph_type == "alignment":
-        # Calculate the number of hits to amr class for a given query
-        amr_count_df = (
-            label_df[["Sample ID", "Query", "amr", "count"]]
-            .groupby(["Sample ID", "Query", "amr"])
-            .sum()
-        )
-
-        exp_df = pd.DataFrame(
-            data=np.full(
-                shape=(heatmap_x_axis.shape[0], heatmap_y_axis.shape[0]),
-                fill_value=np.nan,
-            ),
-            index=heatmap_x_axis,
-            columns=heatmap_y_axis,
-        )
-
-        # Get all queries where x = most frequent class hits and y = another hit
-        x_is_best_y_in_alignment = label_df.loc[
-            pd.merge(  # noqa: PD015
-                left=label_df[["Most Frequent Class", "amr"]].rename(
-                    columns={"amr": "DeepARG Class"}
-                ),
-                right=pair_label_df[
-                    ["Most Frequent Class", "DeepARG Class"]
-                ].drop_duplicates(),
-                how="left",
-                indicator="exist",
-            )["exist"]
-            == "both"
-        ]
-
-        # Calculate the number of hits to y for queries where y is not the most
-        # frequent class hit
-        y_alignments_counts = x_is_best_y_in_alignment[
-            ["Sample ID", "Most Frequent Class", "Query", "amr"]
-        ].drop_duplicates()
-        y_alignments_counts["count"] = y_alignments_counts.apply(
-            lambda x: amr_count_df.at[
-                (x["Sample ID"], x["Query"], x["amr"]), "count"
-            ],
-            axis=1,
-        )
-        y_alignments_counts = y_alignments_counts.set_index(
-            ["Sample ID", "Most Frequent Class", "Query", "amr"]
-        )
-
-        # Calculate the number of total hits for queries where y is not the most
-        # frequent class hit
-        all_alignment_counts = amr_count_df.groupby(
-            level=["Sample ID", "Query"]
-        )[["count"]].sum()
-        all_alignment_counts = (
-            y_alignments_counts
-            .reset_index()
-            .apply(
-                lambda x: pd.Series(
-                    data={
-                        "Sample ID": x["Sample ID"],
-                        "Most Frequent Class": x["Most Frequent Class"],
-                        "Query": x["Query"],
-                        "amr": x["amr"],
-                        "count": all_alignment_counts.loc[
-                            (x["Sample ID"], x["Query"])
-                        ].at["count"],
-                    }
-                ),
-                axis=1,
-            )
-            .set_index(["Sample ID", "Most Frequent Class", "Query", "amr"])
-        )
-
-        # Caluclate the probability of choosing y at random
-        probabilities = y_alignments_counts.div(all_alignment_counts)
-        probabilities = probabilities.groupby(
-            by=["Most Frequent Class", "amr"]
-        )["count"].sum()
-
-        for row in pair_df.iterrows():
-            # For x- and y-axis
-            deeparg_class = row[0][1]
-            diamond_class = row[0][0]
-
-            # For switch_df
-            switch = row[1]["Query"]
-
-            # For exp_db
-            expected = probabilities.at[(diamond_class, deeparg_class)]
-
-            # Insert in dfs
-            switch_df.at[deeparg_class, diamond_class] = float(switch)
-            exp_df.at[deeparg_class, diamond_class] = float(expected)
-
-        # Now let's get the heatmap values
-        heatmap_df = (
-            switch_df
-            .add(1, fill_value=np.nan)
-            .div(exp_df.add(1), fill_value=np.nan)
-            .map(np.log, na_action="ignore")
-            .sort_index()
-        )
-
+for graph_type in ["share", "imbalance", "frequency"]:
     # See if switches coincide with label sharing
-    elif graph_type == "share":
+    if graph_type == "share":
         # Create dataframe to keep track of switches that coincide with label
         # sharing
         share_df = pd.DataFrame(
@@ -511,7 +447,8 @@ for graph_type in ["alignment", "share", "imbalance"]:
         # Now let's get the heatmap values
         heatmap_df = share_df.div(switch_df, fill_value=np.nan)
 
-    else:
+    # See if database skews toward Diamond or DeepARG
+    elif graph_type == "imbalance":
         # Create dataframe to keep track of class with biggest superfamily for
         # each class switch
         biggest_df = pd.DataFrame(
@@ -595,14 +532,64 @@ for graph_type in ["alignment", "share", "imbalance"]:
         # Now let's get the heatmap values
         heatmap_df = biggest_df.div(switch_df, fill_value=np.nan)
 
-    fig = plt.figure(figsize=[15, 15])
-    ax = fig.add_axes((0.01, 0.01, 0.98, 0.98))
+    # Check frequency of queries where switch from x to y happens.
+    else:
+        # Calculate the number of hits to amr class for a given query
+        amr_count_df = (
+            label_df[["Sample ID", "Query", "amr", "count"]]
+            .groupby(["Sample ID", "Query", "amr"])
+            .sum()
+        )
+
+        # Get all queries where x = most frequent class hits and y = another hit
+        x_is_best_y_in_alignment = label_df.loc[
+            pd.merge(  # noqa: PD015
+                left=label_df[["Most Frequent Class", "amr"]].rename(
+                    columns={"amr": "DeepARG Class"}
+                ),
+                right=pair_label_df[
+                    ["Most Frequent Class", "DeepARG Class"]
+                ].drop_duplicates(),
+                how="left",
+                indicator="exist",
+            )["exist"]
+            == "both"
+        ]
+
+        # Calculate the number of queries where x = most frequent class hits and
+        # y = another hit
+        query_counts = x_is_best_y_in_alignment[
+            ["Most Frequent Class", "Query", "amr"]
+        ].drop_duplicates()
+        query_counts = query_counts.groupby(
+            ["Most Frequent Class", "amr"]).count()
+
+        for row in pair_df.iterrows():
+            # For x- and y-axis
+            deeparg_class = row[0][1]
+            diamond_class = row[0][0]
+
+            # For switch_df
+            switch = row[1]["Query"]
+
+            # For switch_freq_df
+            queries = query_counts.at[(diamond_class, deeparg_class), "Query"]
+
+            # Insert in df
+            switch_df.at[deeparg_class, diamond_class] = float(
+                switch / queries)
+
+        # Now let's get the heatmap values
+        heatmap_df = switch_df
+
+    fig = plt.figure(figsize=[18, 18])
+    ax = fig.add_axes((0.08, 0.08, 0.84, 0.84))
 
     # Create graph objects along with nodes and edges
     G = nx.MultiDiGraph()
     G.add_nodes_from(set(heatmap_x_axis.to_list()).union(set(heatmap_y_axis)))
     G.add_weighted_edges_from([
-        (y, x, round(heatmap_df.at[x, y], 2))
+        (y, x, round(heatmap_df.at[x, y], 3))
         for x in heatmap_x_axis.to_list()
         for y in heatmap_y_axis.to_list()
         if not np.isnan(heatmap_df.at[x, y])
@@ -688,7 +675,7 @@ for graph_type in ["alignment", "share", "imbalance"]:
             np.sin(np.deg2rad(9 * slice_super)) * 2.00,
             np.cos(np.deg2rad(9 * slice_super)) * 2.00,
         ),
-        "TET-C": (
+        "TCM": (
             np.sin(np.deg2rad(12 * slice_super)) * 2.00,
             np.cos(np.deg2rad(12 * slice_super)) * 2.00,
         ),
@@ -711,8 +698,8 @@ for graph_type in ["alignment", "share", "imbalance"]:
                 Circle(xy=(0, 0), radius=1.625),
                 Circle(xy=(0, 0), radius=0.875),
             ],
-            facecolors=["slategray", "white", "white", "white"],
-            alpha=[0.45, 0.2, 0.2, 0.2],
+            facecolors=["darkgrey", "white", "white", "white"],
+            alpha=[0.75, 0.4, 0.4, 1],
         )
     )
 
@@ -741,84 +728,81 @@ for graph_type in ["alignment", "share", "imbalance"]:
     )
 
     # Calculate edge weights and find edge color and style
+    mid_style = (0, (4, 3))
+    pos_style = (0, ())
+    neg_style = (0, (1, 2))
     weights = nx.get_edge_attributes(G, "weight")
     weights.pop(("MDR", "AG", 0))
     normal_edges = list(weights.keys())
     weights = np.array(list(weights.values()))
-    if graph_type == "alignment":
-        width = np.abs(weights) + 1
+    if graph_type == "frequency":
         edge_color_f = np.vectorize(
             lambda x: (
-                "black"
-                if np.abs(x) <= np.log(1.5)
-                else "royalblue"
-                if x >= np.log(10)
-                else "cornflowerblue"
-                if x > np.log(1.5)
-                else "lightcoral"
-                if x > np.log(0.1)
-                else "red"
+                "#9B0009"
+                if x < 0.01  # noqa: PLR2004
+                else "#FF9896"
+                if x < 0.1  # noqa: PLR2004
+                else "#0D4A70"
+                if x >= 0.9  # noqa: PLR2004
+                else "#52C4FF"
+                if x >= 0.5  # noqa: PLR2004
+                else "black"
             )
         )
-        style_f = np.vectorize(
-            lambda x: (
-                "-"
-                if np.abs(x) <= np.log(1.5)
-                else "--"
-                if x > np.log(1.5)
-                else "-."
-            )
+        style_f = lambda x: (  # noqa: E731
+            neg_style
+            if x < 0.1  # noqa: PLR2004
+            else pos_style
+            if x >= 0.5  # noqa: PLR2004
+            else mid_style
         )
     else:
-        width = (np.abs(weights) + 1) * 2
         edge_color_f = np.vectorize(
             lambda x: (
                 "black"
-                if np.abs(x) <= 0.05  # noqa: PLR2004
-                else "royalblue"
+                if np.abs(x) < 0.05  # noqa: PLR2004
+                else "#0D4A70"
                 if x >= 0.9  # noqa: PLR2004
-                else "cornflowerblue"
-                if x > 0.05  # noqa: PLR2004
-                else "lightcoral"
+                else "#52C4FF"
+                if x >= 0.05  # noqa: PLR2004
+                else "#FF9896"
                 if x > -0.9  # noqa: PLR2004
-                else "red"
+                else "#9B0009"
             )
         )
-        style_f = np.vectorize(
-            lambda x: (
-                "-"
-                if np.abs(x) <= 0.05  # noqa: PLR2004
-                else "--"
-                if x > 0.05  # noqa: PLR2004
-                else "-."
-            )
+        style_f = lambda x: (  # noqa: E731
+            mid_style
+            if np.abs(x) < 0.05  # noqa: PLR2004
+            else pos_style
+            if x >= 0.05  # noqa: PLR2004
+            else neg_style
         )
     edge_color = edge_color_f(weights)
-    edge_style = style_f(weights)
+    edge_style = [style_f(x) for x in weights]
 
-    # The tough part: label partition's class (thanking the gods at stackoverflow
-    # for this: https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib)
-    partition_labels = [
+    # Label partition's class (thanking the gods at stackoverflow for this:
+    # https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib)
+    inner_partition_labels = [
         "beta-lactams",
         "peptides",
         "antiseptics",
-        "fluoroquinolones",
+        "quinolones",
         "sulfonamides",
-        "aminoglycosides",
-        "diaminopyrimidines",
+        "amino- ",
+        "diamino-",
         "bicyclomycins",
         "free fatty acids",
         "tetracyclines",
         "nucleosides",
         "nitroimidazoles",
-        "tetracenomycin C",
+        "tetra-",
         "phenicols",
         "oxazolidinones",
         "glycopeptides",
         "pleuromutilins",
         "MLS drugs"]
 
-    curves = [
+    inner_curves = [
         [
             np.sin(
                 np.linspace(
@@ -840,14 +824,67 @@ for graph_type in ["alignment", "share", "imbalance"]:
         for partition in range(partition_super)
     ]
 
-    for curve, partition_label in zip(curves, partition_labels):
+    for curve, partition_label in zip(inner_curves, inner_partition_labels):
         # adding the text
         text = CurvedText(
             x=curve[0],
             y=curve[1],
             text=partition_label,
             va="bottom",
-            fontsize=20,
+            fontsize=24,
+            ax=ax
+        )
+
+    outer_partition_labels = [
+        " ",
+        " ",
+        " ",
+        "fluoro-",
+        " ",
+        "glycosides",
+        "pyrimidines",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        "cenomycins",
+        " ",
+        " ",
+        " ",
+        " ",
+        " "]
+
+    outer_curves = [
+        [
+            np.sin(
+                np.linspace(
+                    np.deg2rad((partition - 0.5) * slice_super),
+                    np.deg2rad((partition + 0.5) * slice_super),
+                    100
+                )
+            )
+            * 3.25,
+            np.cos(
+                np.linspace(
+                    np.deg2rad((partition - 0.5) * slice_super),
+                    np.deg2rad((partition + 0.5) * slice_super),
+                    100
+                )
+            )
+            * 3.25,
+        ]
+        for partition in range(partition_super)
+    ]
+
+    for curve, partition_label in zip(outer_curves, outer_partition_labels):
+        # adding the text
+        text = CurvedText(
+            x=curve[0],
+            y=curve[1],
+            text=partition_label,
+            va="bottom",
+            fontsize=24,
             ax=ax
         )
 
@@ -859,6 +896,7 @@ for graph_type in ["alignment", "share", "imbalance"]:
             "white" if node in sharing_classes else "black" for node in list(G)
         ],
         node_size=4000,
+        edgecolors="grey",
         pos=pos,
     )
 
@@ -875,132 +913,120 @@ for graph_type in ["alignment", "share", "imbalance"]:
     )
 
     # Then add all edges except (MDR, AG)
-    nx.draw_networkx_edges(
+    fancy_arrow_patches = nx.draw_networkx_edges(
         G=G,
         edgelist=normal_edges,
         arrows=True,
         arrowsize=35,
+        arrowstyle="-|>",
         ax=ax,
         connectionstyle="arc3,rad=0.2",
         edge_color=edge_color,
         style=edge_style,
         node_size=4000,
         pos=pos,
-        width=width,
+        width=4,
     )
+
+    # Change cap style of arrow edge
+    for patch in fancy_arrow_patches:
+        patch.set(capstyle="butt")
 
     # Make special edge for (MDR, AG)
     special_weight = np.array(
         [nx.get_edge_attributes(G, "weight")[("MDR", "AG", 0)]]
     )
-    if graph_type == "alignment":
-        width = np.abs(special_weight) + 1
-    else:
-        width = (np.abs(special_weight) + 1) * 2
     edge_color = edge_color_f(special_weight)
     edge_style = style_f(special_weight)
-    nx.draw_networkx_edges(
+    fancy_arrow_patches = nx.draw_networkx_edges(
         G=G,
         edgelist=[("MDR", "AG", 0)],
         arrows=True,
         arrowsize=35,
+        arrowstyle="-|>",
         ax=ax,
         connectionstyle="arc3,rad=0.5",
         edge_color=edge_color,
         style=edge_style,
         node_size=4000,
         pos=pos,
-        width=width,
+        width=4,
     )
 
-    # Save
-    if graph_type == "alignment":
-        fig.savefig(
-            f"most_freq_amr_switch_relative_to_alignment_graph_{model}_{ident}.png"
+    # Change cap style of arrow edge
+    for patch in fancy_arrow_patches:
+        patch.set(capstyle="butt")
+
+    # Add node legend
+    node_legend = fig.legend(
+        handles=[
+            Line2D(
+                [0], [0], marker="o", c="white", ms=20, mfc="white", mec="grey"
+            ),
+            Line2D([0], [0], marker="o", c="white", ms=20, mfc="black"),
+        ],
+        labels=[
+            "Shares a label with another class in database",
+            "Doesn't share a label with another class in database",
+        ],
+        loc="upper right",
+        fontsize=24
+    )
+    fig.add_artist(node_legend)
+
+    # Add edge legend then save
+    legend_artists = [
+        Line2D([0], [0], c="#9B0009", ls=neg_style, lw=4),
+        Line2D([0], [0], c="#FF9896", ls=neg_style, lw=4),
+        Line2D([0], [0], c="#0D4A70", ls=pos_style, lw=4),
+        Line2D([0], [0], c="#52C4FF", ls=pos_style, lw=4),
+        Line2D([0], [0], c="black", ls=mid_style, lw=4),
+    ]
+    if graph_type == "share":
+        fig.legend(
+            handles=legend_artists[2:],
+            labels=[
+                "At least 90% of queries",
+                "Less than 90% of queries",
+                "Less than 5% of queries",
+            ],
+            ncols=3,
+            loc="lower left",
+            fontsize=24
         )
-    elif graph_type == "share":
+
         fig.savefig(
-            f"most_freq_share_label_with_deeparg_graph_{model}_{ident}.png"
+            f"most_freq_share_label_with_deeparg_graph_{model}_{ident}.svg"
         )
     elif graph_type == "imbalance":
-        fig.savefig(f"most_freq_largest_super_graph_{model}_{ident}.png")
-
-    continue
-    ax_left = fig.add_axes((0.12, 0.12, 0.75, 0.84))
-    cbar = fig.add_axes((0.9, 0.24, 0.02, 0.6))
-
-    heatmap_df.transpose().to_csv(f"{graph_type}.csv")
-
-    sns.heatmap(
-        data=heatmap_df.transpose(),
-        # mask=mask_df.transpose(),
-        # cmap=custom_cmap,
-        center=0,
-        vmin=0
-        if graph_type == "share"
-        else -1
-        if graph_type == "imbalance"
-        else -6,
-        vmax=1 if graph_type != "alignment" else 3,
-        ax=ax_left,
-        cbar_ax=cbar,
-    )
-
-    cbar.tick_params(labelsize=30)
-
-    # Label x-axis
-    ax_left.set_xlabel("DeepARG prediction (Y)", fontsize=35)
-
-    # Label y-axis
-    ax_left.set_ylabel(ylabel="alignment-based prediction (X)", fontsize=35)
-
-    # Label x-ticks
-    ax_left.set_xticks(
-        ticks=ax_left.get_xticks(),
-        labels=heatmap_df.index.drop_duplicates(),
-        rotation_mode="anchor",
-        rotation=45,
-        ha="right",
-        va="top",
-        fontsize=30,
-    )
-
-    # Label y-ticks
-    ax_left.set_yticks(
-        ticks=ax_left.get_yticks(),
-        labels=heatmap_df.columns.drop_duplicates(),
-        rotation_mode="anchor",
-        rotation=0,
-        ha="right",
-        va="center",
-        fontsize=30,
-    )
-
-    y_boundaries = range(heatmap_df.columns.size)
-    x_boundaries = range(heatmap_df.index.size)
-
-    for y_loc in y_boundaries[1:]:
-        ax_left.hlines(
-            y_loc,
-            xmin=ax_left.get_xlim()[0],
-            xmax=ax_left.get_xlim()[1],
-            colors="white",
-            linewidth=5,
-        )
-    for x_loc in x_boundaries[1:]:
-        ax_left.vlines(
-            x_loc,
-            ymin=ax_left.get_ylim()[0],
-            ymax=ax_left.get_ylim()[1],
-            colors="white",
-            linewidth=5,
+        fig.legend(
+            handles=legend_artists,
+            labels=[
+                "Heavy skew toward DIAMOND hit",
+                "Skew toward DIAMOND hit",
+                "Heavy skew toward DeepARG prediction",
+                "Skew toward DeepARG prediction",
+                "No skew",
+            ],
+            ncols=3,
+            loc="lower left",
+            fontsize=23
         )
 
-    if graph_type == "alignment":
-        fig.savefig(
-            f"most_freq_amr_switch_relative_to_alignment_{model}_{ident}.png"
+        fig.savefig(f"most_freq_largest_super_graph_{model}_{ident}.svg")
+    elif graph_type == "frequency":
+        fig.legend(
+            handles=legend_artists,
+            labels=[
+                "Switches < 1% of pairs",
+                "Switches < 10% of pairs",
+                "Switches ≥ 90% of pairs",
+                "Switches ≥ 50% of pairs",
+                "Switches ≥ 10% and < 50% of pairs",
+            ],
+            ncols=3,
+            loc="lower left",
+            fontsize=23
         )
-    elif graph_type == "share":
-        fig.savefig(f"most_freq_share_label_with_deeparg_{model}_{ident}.png")
-    elif graph_type == "imbalance":
-        fig.savefig(f"most_freq_largest_super_{model}_{ident}.png")
+
+        fig.savefig(f"switch_frequecy_graph_{model}_{ident}.svg")

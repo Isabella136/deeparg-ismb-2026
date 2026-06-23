@@ -35,9 +35,11 @@ database/database_clustering/*.csv
 database/*.fasta
 database/v*.csv
 WGS_experiments/analysis/*.png
+WGS_experiments/analysis/*.svg
 WGS_experiments/analysis/label_counts.tsv
 WGS_experiments/samples/deeparg_hit_count.tsv
 database/*.png
+database/*.svg
 database/blast_db.sh
 database/blast_results.txt
 test/concat_experiments/frame*.fasta
