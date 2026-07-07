@@ -36,6 +36,7 @@ database/*.fasta
 database/v*.csv
 WGS_experiments/analysis/*.png
 WGS_experiments/analysis/*.svg
+WGS_experiments/analysis/*class_switch*.csv
 WGS_experiments/analysis/label_counts.tsv
 WGS_experiments/samples/deeparg_hit_count.tsv
 database/*.png
