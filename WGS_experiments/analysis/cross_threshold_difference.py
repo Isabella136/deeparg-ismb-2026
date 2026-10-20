@@ -730,21 +730,21 @@ class_switch_30_concat_info = pd.concat(
 )
 
 is_class_in_list = np.vectorize(
-    lambda deep_class, frequent_class_list: deep_class in frequent_class_list
+    lambda cls, cls_list: cls in cls_list
 )
 do_lists_overlap = np.vectorize(
     lambda list_a, list_b: len(set(list_a).intersection(set(list_b))) > 0)
 
 class_switch_30_concat_info["50 Most frequent same as 30 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_30_concat_info["50 Most frequent class"],
+    is_class_in_list(
         class_switch_30_concat_info["30 Most frequent class"],
+        class_switch_30_concat_info["50 Most frequent class"],
     )
 )
 class_switch_30_concat_info["80 Most frequent same as 30 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_30_concat_info["80 Most frequent class"],
+    is_class_in_list(
         class_switch_30_concat_info["30 Most frequent class"],
+        class_switch_30_concat_info["80 Most frequent class"],
     )
 )
 class_switch_30_concat_info["50 Most frequent same as 30 DeepARG"] = is_class_in_list(
@@ -759,8 +759,6 @@ class_switch_30_concat_info = class_switch_30_concat_info.reset_index()
 class_switch_30_concat_summary = class_switch_30_concat_info.groupby(
     by=[
         "Model",
-        "30 Most frequent class",
-        "30 DeepARG class",
         "50 aligned",
         "50 predicted",
         "50 Most frequent same as 30 Most frequent",
@@ -790,15 +788,15 @@ class_switch_50_concat_info = pd.concat(
 )
 
 class_switch_50_concat_info["30 Most frequent same as 50 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_50_concat_info["30 Most frequent class"],
+    is_class_in_list(
         class_switch_50_concat_info["50 Most frequent class"],
+        class_switch_50_concat_info["30 Most frequent class"],
     )
 )
 class_switch_50_concat_info["80 Most frequent same as 50 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_50_concat_info["80 Most frequent class"],
+    is_class_in_list(
         class_switch_50_concat_info["50 Most frequent class"],
+        class_switch_50_concat_info["80 Most frequent class"],
     )
 )
 class_switch_50_concat_info["30 Most frequent same as 50 DeepARG"] = is_class_in_list(
@@ -813,8 +811,6 @@ class_switch_50_concat_info = class_switch_50_concat_info.reset_index()
 class_switch_50_concat_summary = class_switch_50_concat_info.groupby(
     by=[
         "Model",
-        "50 Most frequent class",
-        "50 DeepARG class",
         "30 aligned",
         "30 predicted",
         "30 Most frequent same as 50 Most frequent",
@@ -844,9 +840,9 @@ class_switch_30_50_concat_info = pd.concat(
 )
 
 class_switch_30_50_concat_info["80 Most frequent same as 30/50 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_30_50_concat_info["80 Most frequent class"],
+    is_class_in_list(
         class_switch_30_50_concat_info["50 Most frequent class"],
+        class_switch_30_50_concat_info["80 Most frequent class"],
     )
 )
 class_switch_30_50_concat_info["80 Most frequent same as 30/50 DeepARG"] = (
@@ -859,8 +855,6 @@ class_switch_30_50_concat_info = class_switch_30_50_concat_info.reset_index()
 class_switch_30_50_concat_summary = class_switch_30_50_concat_info.groupby(
     by=[
         "Model",
-        "30 Most frequent class",
-        "30 DeepARG class",
         "80 aligned",
         "80 predicted",
         "80 Most frequent same as 30/50 Most frequent",
@@ -888,22 +882,20 @@ class_switch_30_50_concat_summary.to_csv("class_switch_30_50_concat_summary.csv"
 # Concat all queries that only class switched at 30 and 50
 # and had different class switches
 not_same_class_switch_30_50_info["80 Most frequent same as 30 Most frequent"] = (
-    do_lists_overlap(
-        not_same_class_switch_30_50_info["80 Most frequent class"],
+    is_class_in_list(
         not_same_class_switch_30_50_info["30 Most frequent class"],
+        not_same_class_switch_30_50_info["80 Most frequent class"],
     )
 )
 not_same_class_switch_30_50_info["80 Most frequent same as 50 Most frequent"] = (
-    do_lists_overlap(
-        not_same_class_switch_30_50_info["80 Most frequent class"],
+    is_class_in_list(
         not_same_class_switch_30_50_info["50 Most frequent class"],
+        not_same_class_switch_30_50_info["80 Most frequent class"],
     )
 )
 not_same_class_switch_30_50_info["30 Most frequent same as 50 Most frequent"] = (
-    do_lists_overlap(
-        not_same_class_switch_30_50_info["30 Most frequent class"],
-        not_same_class_switch_30_50_info["50 Most frequent class"],
-    )
+    not_same_class_switch_30_50_info["50 Most frequent class"]
+    == not_same_class_switch_30_50_info["30 Most frequent class"]
 )
 
 not_same_class_switch_30_50_info["80 Most frequent same as 30 DeepARG"] = (
@@ -919,25 +911,17 @@ not_same_class_switch_30_50_info["80 Most frequent same as 50 DeepARG"] = (
     )
 )
 not_same_class_switch_30_50_info["50 Most frequent same as 30 DeepARG"] = (
-    is_class_in_list(
-        not_same_class_switch_30_50_info["30 DeepARG class"],
-        not_same_class_switch_30_50_info["50 Most frequent class"],
-    )
+    not_same_class_switch_30_50_info["30 DeepARG class"]
+    == not_same_class_switch_30_50_info["50 Most frequent class"]
 )
 not_same_class_switch_30_50_info["30 Most frequent same as 50 DeepARG"] = (
-    is_class_in_list(
-        not_same_class_switch_30_50_info["50 DeepARG class"],
-        not_same_class_switch_30_50_info["30 Most frequent class"],
-    )
+    not_same_class_switch_30_50_info["50 DeepARG class"]
+    == not_same_class_switch_30_50_info["30 Most frequent class"]
 )
 not_same_class_switch_30_50_info = not_same_class_switch_30_50_info.reset_index()
 not_same_class_switch_30_50_summary = not_same_class_switch_30_50_info.groupby(
     by=[
         "Model",
-        "30 Most frequent class",
-        "30 DeepARG class",
-        "50 Most frequent class",
-        "50 DeepARG class",
         "80 aligned",
         "80 predicted",
         "80 Most frequent same as 30 Most frequent",
@@ -977,15 +961,15 @@ class_switch_80_concat_info = pd.concat(
 )
 
 class_switch_80_concat_info["30 Most frequent same as 80 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_80_concat_info["30 Most frequent class"],
+    is_class_in_list(
         class_switch_80_concat_info["80 Most frequent class"],
+        class_switch_80_concat_info["30 Most frequent class"],
     )
 )
 class_switch_80_concat_info["50 Most frequent same as 80 Most frequent"] = (
-    do_lists_overlap(
-        class_switch_80_concat_info["50 Most frequent class"],
+    is_class_in_list(
         class_switch_80_concat_info["80 Most frequent class"],
+        class_switch_80_concat_info["50 Most frequent class"],
     )
 )
 class_switch_80_concat_info["30 Most frequent same as 80 DeepARG"] = is_class_in_list(
@@ -1000,8 +984,6 @@ class_switch_80_concat_info = class_switch_80_concat_info.reset_index()
 class_switch_80_concat_summary = class_switch_80_concat_info.groupby(
     by=[
         "Model",
-        "80 Most frequent class",
-        "80 DeepARG class",
         "30 aligned",
         "30 predicted",
         "30 Most frequent same as 80 Most frequent",

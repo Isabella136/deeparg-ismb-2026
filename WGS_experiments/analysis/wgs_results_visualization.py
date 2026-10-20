@@ -206,13 +206,28 @@ perc_freq_diff_ax.grid(visible=True, which="major", axis="y", color="0.75")
 
 # We want y-axis labels for all graphs to be vertically aligned
 plt.gcf().text(
-    0.02, 0.21, "Average Percentage", rotation=90, fontsize=35, va="center"
+    0.02,
+    0.21,
+    "DeepARG Predictions Differing from Alignment-Based Prediction (Avg %)",
+    rotation=90,
+    fontsize=35,
+    va="center",
 )
 plt.gcf().text(
-    0.02, 0.525, "Average Percentage", rotation=90, fontsize=35, va="center"
+    0.02,
+    0.525,
+    "Aligned Queries with Deeparg Prediction (Avg %)",
+    rotation=90,
+    fontsize=35,
+    va="center",
 )
 plt.gcf().text(
-    0.02, 0.84, "Average Percentage", rotation=90, fontsize=35, va="center"
+    0.02,
+    0.84,
+    "Queries with Alignment Hits (Avg %)",
+    rotation=90,
+    fontsize=35,
+    va="center",
 )
 
 # Save plot and be done with it
@@ -355,7 +370,7 @@ switch_df = pd.DataFrame(
         columns=heatmap_y_axis,
     )
 
-for graph_type in ["share", "imbalance", "frequency"]:
+for graph_type in ["frequency", "share", "imbalance"]:
     # See if switches coincide with label sharing
     if graph_type == "share":
         # Create dataframe to keep track of switches that coincide with label
@@ -449,9 +464,17 @@ for graph_type in ["share", "imbalance", "frequency"]:
 
     # See if database skews toward Diamond or DeepARG
     elif graph_type == "imbalance":
-        # Create dataframe to keep track of class with biggest superfamily for
+        # Create dataframes to keep track of class with biggest superfamily for
         # each class switch
-        biggest_df = pd.DataFrame(
+        diamond_biggest_df = pd.DataFrame(
+            data=np.full(
+                shape=(heatmap_x_axis.shape[0], heatmap_y_axis.shape[0]),
+                fill_value=0,
+            ),
+            index=heatmap_x_axis,
+            columns=heatmap_y_axis,
+        )
+        deeparg_biggest_df = pd.DataFrame(
             data=np.full(
                 shape=(heatmap_x_axis.shape[0], heatmap_y_axis.shape[0]),
                 fill_value=0,
@@ -514,7 +537,6 @@ for graph_type in ["share", "imbalance", "frequency"]:
             # Check for biggest superfamily
             sample = row[1]["Sample ID"]
             query = row[1]["Query"]
-            biggest = 0
             y_query_alignment = y_alignments.at[
                 (sample, diamond, deeparg, query),
                 "Is Class with Biggest Superfam",
@@ -524,16 +546,30 @@ for graph_type in ["share", "imbalance", "frequency"]:
                 "Is Class with Biggest Superfam",
             ]
             if y_query_alignment:
-                biggest = 1
+                deeparg_biggest_df.at[deeparg, diamond] += 1.0
             elif x_query_alignment:
-                biggest = -1
-            biggest_df.at[deeparg, diamond] += float(biggest)
+                diamond_biggest_df.at[deeparg, diamond] += 1.0
+        # Coalesce dataframes for heatmap:
+            # If deeparg_biggest_df is greatest, then add deeparg_biggest_df
+            # If diamond_biggest_df is greatest, then substract diamond_biggest_df
+        biggest_df = deeparg_biggest_df.where(
+            deeparg_biggest_df > diamond_biggest_df, -diamond_biggest_df
+        )
 
         # Now let's get the heatmap values
         heatmap_df = biggest_df.div(switch_df, fill_value=np.nan)
 
     # Check frequency of queries where switch from x to y happens.
     else:
+        queries_df = pd.DataFrame(
+            data=np.full(
+                shape=(heatmap_x_axis.shape[0], heatmap_y_axis.shape[0]),
+                fill_value=np.nan,
+            ),
+            index=heatmap_x_axis,
+            columns=heatmap_y_axis,
+        )
+
         # Calculate the number of hits to amr class for a given query
         amr_count_df = (
             label_df[["Sample ID", "Query", "amr", "count"]]
@@ -569,18 +605,14 @@ for graph_type in ["share", "imbalance", "frequency"]:
             deeparg_class = row[0][1]
             diamond_class = row[0][0]
 
-            # For switch_df
-            switch = row[1]["Query"]
-
-            # For switch_freq_df
-            queries = query_counts.at[(diamond_class, deeparg_class), "Query"]
-
             # Insert in df
-            switch_df.at[deeparg_class, diamond_class] = float(
-                switch / queries)
+            switch_df.at[deeparg_class, diamond_class] = float(row[1]["Query"])
+            queries_df.at[deeparg_class, diamond_class] = float(
+                query_counts.at[(diamond_class, deeparg_class), "Query"]
+            )
 
         # Now let's get the heatmap values
-        heatmap_df = switch_df
+        heatmap_df = switch_df.div(queries_df, fill_value=np.nan)
 
     fig = plt.figure(figsize=[18, 18])
     ax = fig.add_axes((0.08, 0.08, 0.84, 0.84))
@@ -756,7 +788,7 @@ for graph_type in ["share", "imbalance", "frequency"]:
             if x >= 0.5  # noqa: PLR2004
             else mid_style
         )
-    else:
+    elif graph_type == "share":
         edge_color_f = np.vectorize(
             lambda x: (
                 "black"
@@ -775,6 +807,27 @@ for graph_type in ["share", "imbalance", "frequency"]:
             if np.abs(x) < 0.05  # noqa: PLR2004
             else pos_style
             if x >= 0.05  # noqa: PLR2004
+            else neg_style
+        )
+    else:
+        edge_color_f = np.vectorize(
+            lambda x: (
+                "black"
+                if np.abs(x) < 0.5  # noqa: PLR2004
+                else "#0D4A70"
+                if x >= 0.9  # noqa: PLR2004
+                else "#52C4FF"
+                if x >= 0.5  # noqa: PLR2004
+                else "#FF9896"
+                if x > -0.9  # noqa: PLR2004
+                else "#9B0009"
+            )
+        )
+        style_f = lambda x: (  # noqa: E731
+            mid_style
+            if np.abs(x) < 0.5  # noqa: PLR2004
+            else pos_style
+            if x >= 0.5  # noqa: PLR2004
             else neg_style
         )
     edge_color = edge_color_f(weights)
@@ -996,7 +1049,7 @@ for graph_type in ["share", "imbalance", "frequency"]:
         )
 
         fig.savefig(
-            f"most_freq_share_label_with_deeparg_graph_{model}_{ident}.svg"
+            f"most_freq_share_label_with_deeparg_graph_{model}_{ident}.png"
         )
     elif graph_type == "imbalance":
         fig.legend(
@@ -1013,7 +1066,7 @@ for graph_type in ["share", "imbalance", "frequency"]:
             fontsize=23
         )
 
-        fig.savefig(f"most_freq_largest_super_graph_{model}_{ident}.svg")
+        fig.savefig(f"most_freq_largest_super_graph_{model}_{ident}.png")
     elif graph_type == "frequency":
         fig.legend(
             handles=legend_artists,
@@ -1029,4 +1082,4 @@ for graph_type in ["share", "imbalance", "frequency"]:
             fontsize=23
         )
 
-        fig.savefig(f"switch_frequecy_graph_{model}_{ident}.svg")
+        fig.savefig(f"switch_frequecy_graph_{model}_{ident}.png")

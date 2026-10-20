@@ -2,6 +2,7 @@ import sys
 import warnings
 from itertools import product
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -17,6 +18,8 @@ from utils.curved_text import CurvedText
 VERSION = sys.argv[1]
 FEATURE_DATA = f"v{VERSION}_feature_data.csv"
 HIT_CLASSES = "../WGS_experiments/samples/hit_classes.tsv"
+
+mpl.rcParams["svg.fonttype"] = "none"
 
 
 def get_shared_label_counts(
@@ -85,7 +88,7 @@ combo_super_class_count_df = pd.DataFrame(
 plt.figure(figsize=(40, 20))
 label_ax = plt.axes((0.05, 0.1, 0.92, 0.42))
 feature_ax = plt.axes((0.05, 0.55, 0.92, 0.42), sharex=label_ax)
-cb_palette = sns.color_palette("colorblind")
+palette = ["#52C4FF", "#9B0009"]
 
 # Find the size of the biggest cluster per class
 clstr_max = pd.DataFrame(
@@ -168,9 +171,8 @@ sns.barplot(
     hue_order=["clstr|amr", "super|amr"],
     estimator="median",
     ax=label_ax,
-    palette=cb_palette[:2],
+    palette=["#52C4FF", "#FF9896"],
     errorbar=None,
-    alpha=0.5,
     legend=True,
 )
 sns.stripplot(
@@ -182,7 +184,7 @@ sns.stripplot(
     ax=label_ax,
     dodge=True,
     size=15,
-    palette=cb_palette[:2],
+    palette=["#0D4A70", "#9B0009"],
     legend=True,
 )
 
@@ -234,7 +236,7 @@ hist = sns.histplot(
     element="bars",
     common_norm=False,
     shrink=0.8,
-    color="black",
+    color="#7777A3",
 )
 hist.bar_label(
     hist.containers[0],
@@ -264,7 +266,7 @@ label_ax.margins(x=0)
 
 # We want y-axis labels for both graphs to be vertically aligned
 plt.gcf().text(
-    0.008, 0.31, "Sequence Count Ratio", rotation=90, fontsize=35, va="center"
+    0.008, 0.31, "Sequence Count Fraction", rotation=90, fontsize=35, va="center"
 )
 plt.gcf().text(
     0.008, 0.77, "Sequence Count", rotation=90, fontsize=35, va="center"
